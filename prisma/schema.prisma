@@ -1,0 +1,133 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ────────────────────────────────────────────────
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  REVIEW
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// ── Models ───────────────────────────────────────────────
+
+model Organization {
+  id        Int       @id @default(autoincrement())
+  name      String
+  ownerId   Int
+  owner     User      @relation("OrgOwner", fields: [ownerId], references: [id])
+  members   User[]    @relation("OrgMembers")
+  projects  Project[]
+  createdAt DateTime  @default(now())
+}
+
+model User {
+  id             Int            @id @default(autoincrement())
+  name           String
+  email          String         @unique
+  organizationId Int?
+  organization   Organization?  @relation("OrgMembers", fields: [organizationId], references: [id])
+  ownedOrgs      Organization[] @relation("OrgOwner")
+  createdTasks   Task[]         @relation("TaskCreator")
+  assignedTasks  Task[]         @relation("TaskAssignee")
+  comments       Comment[]
+  createdAt      DateTime       @default(now())
+}
+
+model Project {
+  id             Int          @id @default(autoincrement())
+  name           String
+  description    String?
+  organizationId Int
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  sprints        Sprint[]
+  labels         Label[]
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+}
+
+model Sprint {
+  id        Int       @id @default(autoincrement())
+  name      String
+  projectId Int
+  project   Project   @relation(fields: [projectId], references: [id])
+  startDate DateTime?
+  endDate   DateTime?
+  isActive  Boolean   @default(false)
+  tasks     Task[]
+  createdAt DateTime  @default(now())
+
+  @@index([projectId])
+}
+
+model Task {
+  id          Int          @id @default(autoincrement())
+  title       String
+  description String?
+  status      TaskStatus   @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
+  sprintId    Int
+  sprint      Sprint       @relation(fields: [sprintId], references: [id])
+  creatorId   Int
+  creator     User         @relation("TaskCreator", fields: [creatorId], references: [id])
+  assigneeId  Int?
+  assignee    User?        @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  dueDate     DateTime?
+  comments    Comment[]
+  labels      TaskLabel[]
+  deletedAt   DateTime?
+  version     Int          @default(1)   // optimistic concurrency token
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([sprintId, status])
+  @@index([assigneeId, status])
+  // Covering index for cursor-pagination: WHERE sprintId=? AND deletedAt IS NULL ORDER BY createdAt
+  @@index([sprintId, deletedAt, createdAt])
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  content   String
+  taskId    Int
+  task      Task     @relation(fields: [taskId], references: [id])
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Label {
+  id        Int         @id @default(autoincrement())
+  name      String
+  color     String      @default("#6b7280")
+  projectId Int
+  project   Project     @relation(fields: [projectId], references: [id])
+  tasks     TaskLabel[]
+}
+
+model TaskLabel {
+  taskId  Int
+  labelId Int
+  task    Task  @relation(fields: [taskId], references: [id])
+  label   Label @relation(fields: [labelId], references: [id])
+
+  @@id([taskId, labelId])
+}

@@ -1,65 +1,168 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { cache } from "@/lib/cache";
+
+type Org = {
+	id: number;
+	name: string;
+	owner: { id: number; name: string; email: string };
+	_count: { members: number; projects: number };
+	createdAt: string;
+};
+
+export default function DashboardPage() {
+	const [orgs, setOrgs] = useState<Org[]>(() => cache.get<Org[]>("orgs") ?? []);
+	const [loading, setLoading] = useState(() => !cache.get<Org[]>("orgs"));
+	const [showCreate, setShowCreate] = useState(false);
+	const [form, setForm] = useState({ name: "", ownerName: "", ownerEmail: "" });
+	const [creating, setCreating] = useState(false);
+
+	const loadOrgs = async () => {
+		// Show loading only on cold cache; cached data is already rendered
+		if (!cache.get<Org[]>("orgs")) setLoading(true);
+		const r = await fetch("/api/orgs");
+		const data = await r.json();
+		setOrgs(data);
+		cache.set("orgs", data, 60_000);
+		setLoading(false);
+	};
+
+	useEffect(() => { loadOrgs(); }, []);
+
+	const createOrg = async () => {
+		if (!form.name || !form.ownerName || !form.ownerEmail) return;
+		setCreating(true);
+		await fetch("/api/orgs", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(form),
+		});
+		setForm({ name: "", ownerName: "", ownerEmail: "" });
+		setShowCreate(false);
+		setCreating(false);
+		cache.del("orgs"); // invalidate so next load refetches fresh list
+		loadOrgs();
+	};
+
+	return (
+		<div style={{ padding: "40px 48px", maxWidth: "1100px", margin: "0 auto" }}>
+			{/* Header */}
+			<div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "40px" }}>
+				<div>
+					<div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "6px" }}>
+						<span style={{ fontSize: "1.6rem" }}>⬡</span>
+						<h1 style={{
+							fontSize: "2rem", fontWeight: 700, letterSpacing: "-0.03em",
+							background: "linear-gradient(135deg, #a78bfa 0%, #6ee7b7 100%)",
+							WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+						}}>Sprint Manager</h1>
+					</div>
+					<p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>
+						Team Task &amp; Sprint Manager — Jira-lite
+					</p>
+				</div>
+				<div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+					<Link href="/search" className="btn-ghost">🔍 Search</Link>
+					<Link href="/tasks" className="btn-ghost">Tasks</Link>
+					<Link href="/logs" className="btn-ghost">Logs</Link>
+					<button className="btn-primary" onClick={() => setShowCreate(true)}>
+						+ New Organization
+					</button>
+				</div>
+			</div>
+
+			{/* Stats bar */}
+			<div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "16px", marginBottom: "36px" }}>
+				{[
+					{ label: "Organizations", value: orgs.length, icon: "⬡" },
+					{ label: "Total Projects", value: orgs.reduce((s, o) => s + o._count.projects, 0), icon: "◈" },
+					{ label: "Team Members", value: orgs.reduce((s, o) => s + o._count.members, 0), icon: "◎" },
+				].map((stat) => (
+					<div key={stat.label} className="glass" style={{ padding: "20px 24px" }}>
+						<div style={{ fontSize: "1.5rem", marginBottom: "8px" }}>{stat.icon}</div>
+						<div style={{ fontSize: "1.8rem", fontWeight: 700, color: "var(--accent)" }}>{stat.value}</div>
+						<div style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: "2px" }}>{stat.label}</div>
+					</div>
+				))}
+			</div>
+
+			{/* Org list */}
+			<h2 style={{ fontSize: "1rem", fontWeight: 600, color: "var(--text-muted)", marginBottom: "16px", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+				Organizations
+			</h2>
+
+			{loading ? (
+				<div style={{ padding: "60px", textAlign: "center", color: "var(--text-muted)" }}>Loading…</div>
+			) : orgs.length === 0 ? (
+				<div className="glass" style={{ padding: "60px", textAlign: "center" }}>
+					<div style={{ fontSize: "3rem", marginBottom: "16px", opacity: 0.3 }}>⬡</div>
+					<p style={{ color: "var(--text-muted)" }}>No organizations yet. Create one to get started.</p>
+				</div>
+			) : (
+				<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "16px" }}>
+					{orgs.map((org) => (
+						<Link key={org.id} href={`/orgs/${org.id}`} style={{ display: "block" }}>
+							<div className="glass kanban-card" style={{ padding: "22px 24px", cursor: "pointer" }}>
+								<div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+									<div style={{
+										width: "40px", height: "40px", borderRadius: "10px", flexShrink: 0,
+										background: "linear-gradient(135deg, #7c6ff7, #6ee7b7)",
+										display: "flex", alignItems: "center", justifyContent: "center",
+										fontWeight: 700, fontSize: "1.1rem", color: "#fff",
+									}}>
+										{org.name[0].toUpperCase()}
+									</div>
+									<div>
+										<div style={{ fontWeight: 600, fontSize: "1rem" }}>{org.name}</div>
+										<div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>by {org.owner.name}</div>
+									</div>
+								</div>
+								<div style={{ display: "flex", gap: "16px", fontSize: "0.82rem", color: "var(--text-muted)" }}>
+									<span>📁 {org._count.projects} projects</span>
+									<span>👥 {org._count.members} members</span>
+								</div>
+							</div>
+						</Link>
+					))}
+				</div>
+			)}
+
+			{/* Create Org Modal */}
+			{showCreate && (
+				<div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowCreate(false)}>
+					<div className="modal-box anim-modal" style={{ padding: "32px" }}>
+						<h2 style={{ fontWeight: 700, fontSize: "1.2rem", marginBottom: "6px" }}>Create Organization</h2>
+						<p style={{ color: "var(--text-muted)", fontSize: "0.875rem", marginBottom: "24px" }}>
+							This will also create the owner account.
+						</p>
+						<div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+							{[
+								{ label: "Organization Name", key: "name", placeholder: "Acme Corp" },
+								{ label: "Your Name", key: "ownerName", placeholder: "Jane Doe" },
+								{ label: "Your Email", key: "ownerEmail", placeholder: "jane@acme.com" },
+							].map(({ label, key, placeholder }) => (
+								<div key={key}>
+									<label style={{ display: "block", fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "6px" }}>{label}</label>
+									<input
+										className="input-field"
+										placeholder={placeholder}
+										value={form[key as keyof typeof form]}
+										onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+									/>
+								</div>
+							))}
+						</div>
+						<div style={{ display: "flex", gap: "10px", marginTop: "24px", justifyContent: "flex-end" }}>
+							<button className="btn-ghost" onClick={() => setShowCreate(false)}>Cancel</button>
+							<button className="btn-primary" onClick={createOrg} disabled={creating}>
+								{creating ? "Creating…" : "Create"}
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+		</div>
+	);
 }
