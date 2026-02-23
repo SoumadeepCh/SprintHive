@@ -1,0 +1,43 @@
+﻿
+> todo-prisma@0.1.0 build
+> next build
+
+Γû▓ Next.js 16.1.6 (Turbopack)
+- Environments: .env
+
+  Creating an optimized production build ...
+Γ£ô Compiled successfully in 4.6s
+  Running TypeScript ...
+node.exe : Failed to compile.
+At C:\Program Files\nodejs\npm.ps1:29 char:3
++   & $NODE_EXE $NPM_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Failed to  
+   compile.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+./app/api/test/route.ts:6:14
+Type error: Object literal may only specify known 
+properties, and 'projects' does not exist in type 
+'UserInclude<InternalArgs & { result: {}; model: {}; 
+query: {}; client: {}; }> | { organization?: 
+Exact<boolean | User$organizationArgs<InternalArgs & { 
+result: {}; model: {}; query: {}; client: {}; }> | 
+undefined, boolean | ... 1 more ... | undefined>; ... 4 
+more ...; _count?: Exact<...>; }'.
+
+[0m [90m 4 |[39m [36mexport[39m [36masync[39m 
+[36mfunction[39m [33mGET[39m() {
+ [90m 5 |[39m 	[36mconst[39m users [33m=[39m 
+[36mawait[39m 
+prisma[33m.[39muser[33m.[39mfindMany({
+[31m[1m>[22m[39m[90m 6 |[39m 		include[33m:[39m 
+{ projects[33m:[39m [36mtrue[39m }[33m,[39m
+ [90m   |[39m 		           [31m[1m^[22m[39m
+ [90m 7 |[39m 	})[33m;[39m
+ [90m 8 |[39m
+ [90m 9 |[39m 	[36mreturn[39m [33mNextResponse[39m
+[33m.[39mjson(users)[33m;[39m[0m
+Next.js build worker exited with code: 1 and signal: 
+null

@@ -7,7 +7,7 @@ export async function PATCH(
 ) {
     const { id } = await params;
     const body = await req.json();
-    const todo = await prisma.todo.update({
+    const todo = await prisma.task.update({
         where: { id: Number(id) },
         data: {
             ...(typeof body.completed === "boolean" && { completed: body.completed }),
@@ -22,6 +22,6 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     const { id } = await params;
-    await prisma.todo.delete({ where: { id: Number(id) } });
+    await prisma.task.delete({ where: { id: Number(id) } });
     return NextResponse.json({ success: true });
 }

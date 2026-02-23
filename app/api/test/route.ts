@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
 	const users = await prisma.user.findMany({
-		include: { projects: true },
+		include: { organization: true },
 	});
 
 	return NextResponse.json(users);
@@ -14,11 +14,11 @@ export async function POST() {
 		data: {
 			name: "Ainz",
 			email: `ainz${Date.now()}@mail.com`,
-			projects: {
-				create: { name: "Demo Project" },
+			organization: {
+				connect: { id: 1 },
 			},
 		},
-		include: { projects: true },
+		include: { organization: true },
 	});
 
 	return NextResponse.json(user);

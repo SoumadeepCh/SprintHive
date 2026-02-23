@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "title, sprintId, creatorId required" }, { status: 400 });
     }
 
-    const task = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const task = await prisma.$transaction(async (tx) => {
         const task = await tx.task.create({
             data: {
                 title,
