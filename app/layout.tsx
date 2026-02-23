@@ -1,25 +1,61 @@
 import type { Metadata } from "next";
+import {
+  ClerkProvider,
+  SignInButton,
+  SignUpButton,
+  SignedIn,
+  SignedOut,
+  UserButton,
+} from "@clerk/nextjs";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Todo — Stay on top of your day",
-  description: "A beautiful, minimal todo app powered by Next.js and Prisma.",
+  title: "SprintHive — Team Task & Sprint Manager",
+  description: "A beautiful, minimal sprint management app powered by Next.js, Prisma, and Clerk.",
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body>{children}</body>
-    </html>
+    <ClerkProvider>
+      <html lang="en">
+        <head>
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+          <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+            rel="stylesheet"
+          />
+        </head>
+        <body>
+          <header style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            padding: "12px 24px",
+            gap: "12px",
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+          }}>
+            <SignedOut>
+              <SignInButton>
+                <button className="btn-ghost">Sign In</button>
+              </SignInButton>
+              <SignUpButton>
+                <button className="btn-primary">Sign Up</button>
+              </SignUpButton>
+            </SignedOut>
+            <SignedIn>
+              <UserButton
+                appearance={{
+                  elements: { avatarBox: { width: "36px", height: "36px" } },
+                }}
+              />
+            </SignedIn>
+          </header>
+          {children}
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
