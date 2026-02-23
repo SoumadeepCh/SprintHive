@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 import { getLogs, getStats } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
