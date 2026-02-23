@@ -1,35 +1,29 @@
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 import { prisma } from "@/lib/prisma";
+import { getOrCreateDbUser, getUserOrgIds } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 
-/**
- * GET /api/analytics/burndown?sprintId=<id>
- *
- * Returns daily remaining task count for the burn-down chart.
- *
- * Approach:
- *  - Generate a date series from sprint.startDate → min(endDate, TODAY)
- *  - Tasks are considered "completed on day D" if status=DONE AND DATE(updatedAt) = D
- *    (updatedAt is Prisma's auto-managed field — a reasonable proxy for completion time)
- *  - Compute cumulative completions per day; remaining = total − cumulative
- *  - Also return the "ideal" line: linear decrease from total to 0 over sprint duration
- *
- * Note: If sprint has no startDate/endDate we return an empty series.
- */
 export async function GET(req: NextRequest) {
+    const user = await getOrCreateDbUser();
+    const orgIds = await getUserOrgIds(user.id);
+
     const sprintId = Number(new URL(req.url).searchParams.get("sprintId"));
     if (!sprintId) return NextResponse.json({ error: "sprintId required" }, { status: 400 });
 
-    // Fetch sprint basics
+    // Verify sprint belongs to user's org
     const sprint = await prisma.sprint.findUnique({
         where: { id: sprintId },
-        select: { id: true, name: true, startDate: true, endDate: true },
+        select: { id: true, name: true, startDate: true, endDate: true, project: { select: { organizationId: true } } },
     });
 
-    if (!sprint || !sprint.startDate || !sprint.endDate) {
+    if (!sprint || !orgIds.includes(sprint.project.organizationId)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (!sprint.startDate || !sprint.endDate) {
         return NextResponse.json({
-            sprint: sprint ?? null,
+            sprint: { id: sprint.id, name: sprint.name },
             series: [],
             total: 0,
             message: "Sprint has no start/end dates — set them to see the burn-down chart.",
@@ -89,7 +83,6 @@ export async function GET(req: NextRequest) {
         remaining: Number(r.remaining),
         done: Number(r.done),
         total: Number(r.total),
-        // Ideal burn-down: linear from total → 0 over sprint duration
         ideal: Math.round(totalTasks * (1 - i / Math.max(dayCount - 1, 1))),
     }));
 

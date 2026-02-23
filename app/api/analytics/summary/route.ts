@@ -2,26 +2,27 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma";
+import { getOrCreateDbUser, getUserOrgIds } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 
-/**
- * GET /api/analytics/summary?projectId=
- *
- * Returns KPI metrics for a project. Uses a single raw SQL query with
- * sub-selects to pull everything in one database round-trip.
- *
- * Metrics:
- *  - totalTasks        / completedTasks  / completionRate
- *  - totalSprints      / activeSprint name
- *  - highPriorityOpen  (HIGH or URGENT tasks not yet DONE)
- *  - avgTasksPerSprint (computed in SQL)
- */
 export async function GET(req: NextRequest) {
+    const user = await getOrCreateDbUser();
+    const orgIds = await getUserOrgIds(user.id);
+
     const { searchParams } = new URL(req.url);
     const projectId = searchParams.get("projectId");
 
     if (!projectId) {
         return NextResponse.json({ error: "projectId is required" }, { status: 400 });
+    }
+
+    // Verify project belongs to user's org
+    const project = await prisma.project.findUnique({
+        where: { id: Number(projectId) },
+        select: { organizationId: true },
+    });
+    if (!project || !orgIds.includes(project.organizationId)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const [summary] = await prisma.$queryRaw<

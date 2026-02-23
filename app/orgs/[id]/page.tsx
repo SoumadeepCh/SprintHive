@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { cache } from "@/lib/cache";
 
-type Member = { id: number; name: string; email: string };
+type Member = { id: number; name: string; email: string; role?: string };
 type Project = { id: number; name: string; description?: string; createdAt: string; _count: { sprints: number } };
 type Org = {
     id: number; name: string;

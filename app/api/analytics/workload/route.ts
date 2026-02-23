@@ -2,24 +2,28 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma";
+import { getOrCreateDbUser, getUserOrgIds } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
  * GET /api/analytics/workload?orgId=
  *
- * Uses a raw SQL query with multiple conditional COUNTs to build a per-user
- * workload breakdown by task status. This would require multiple groupBy
- * calls + in-memory merging in plain Prisma — raw SQL is the right tool.
- *
- * Also uses a window function (SUM OVER PARTITION BY) so the total is
- * available on each row without a second query.
+ * Per-user workload breakdown by task status for an org.
+ * Uses the UserOrganization join table for membership lookup.
  */
 export async function GET(req: NextRequest) {
+    const user = await getOrCreateDbUser();
+    const userOrgIds = await getUserOrgIds(user.id);
+
     const { searchParams } = new URL(req.url);
     const orgId = searchParams.get("orgId");
 
     if (!orgId) {
         return NextResponse.json({ error: "orgId is required" }, { status: 400 });
+    }
+
+    if (!userOrgIds.includes(Number(orgId))) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const rows = await prisma.$queryRaw<
@@ -43,10 +47,12 @@ export async function GET(req: NextRequest) {
             COUNT(t.id) FILTER (WHERE t.status = 'DONE')        AS done,
             COUNT(t.id)                                          AS total
         FROM "User" u
+        INNER JOIN "UserOrganization" uo
+            ON uo."userId" = u.id
+            AND uo."organizationId" = ${Number(orgId)}
         LEFT JOIN "Task" t
             ON t."assigneeId" = u.id
             AND t."deletedAt" IS NULL
-        WHERE u."organizationId" = ${Number(orgId)}
         GROUP BY u.id, u.name
         ORDER BY total DESC, u.name ASC
         `

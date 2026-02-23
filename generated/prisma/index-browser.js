@@ -134,8 +134,14 @@ exports.Prisma.UserScalarFieldEnum = {
   clerkId: 'clerkId',
   name: 'name',
   email: 'email',
-  organizationId: 'organizationId',
   createdAt: 'createdAt'
+};
+
+exports.Prisma.UserOrganizationScalarFieldEnum = {
+  userId: 'userId',
+  organizationId: 'organizationId',
+  role: 'role',
+  joinedAt: 'joinedAt'
 };
 
 exports.Prisma.ProjectScalarFieldEnum = {
@@ -206,6 +212,11 @@ exports.Prisma.NullsOrder = {
   first: 'first',
   last: 'last'
 };
+exports.OrgRole = exports.$Enums.OrgRole = {
+  OWNER: 'OWNER',
+  MEMBER: 'MEMBER'
+};
+
 exports.TaskStatus = exports.$Enums.TaskStatus = {
   TODO: 'TODO',
   IN_PROGRESS: 'IN_PROGRESS',
@@ -223,6 +234,7 @@ exports.TaskPriority = exports.$Enums.TaskPriority = {
 exports.Prisma.ModelName = {
   Organization: 'Organization',
   User: 'User',
+  UserOrganization: 'UserOrganization',
   Project: 'Project',
   Sprint: 'Sprint',
   Task: 'Task',

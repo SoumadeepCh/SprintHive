@@ -1,13 +1,32 @@
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 import { prisma } from "@/lib/prisma";
+import { getOrCreateDbUser, getUserOrgIds } from "@/lib/auth";
+import { sendEmail, taskStatusChangedEmail, taskAssignedEmail } from "@/lib/email";
 import { NextRequest, NextResponse } from "next/server";
+
+async function verifyTaskAccess(taskId: number, orgIds: number[]) {
+    const task = await prisma.task.findUnique({
+        where: { id: taskId, deletedAt: null },
+        include: {
+            sprint: { select: { project: { select: { organizationId: true } } } },
+        },
+    });
+    if (!task || !orgIds.includes(task.sprint.project.organizationId)) return null;
+    return task;
+}
 
 export async function GET(
     _req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const user = await getOrCreateDbUser();
+    const orgIds = await getUserOrgIds(user.id);
     const { id } = await params;
+
+    const access = await verifyTaskAccess(Number(id), orgIds);
+    if (!access) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
     const task = await prisma.task.findUnique({
         where: { id: Number(id), deletedAt: null },
         include: {
@@ -25,30 +44,18 @@ export async function GET(
     return NextResponse.json(task);
 }
 
-/**
- * PATCH /api/tasks/[id]
- *
- * Phase 3 optimization — OPTIMISTIC CONCURRENCY via updateMany:
- *
- * Original approach: prisma.task.update({ where: { id, version } }) and catch P2025.
- * Problem: using exceptions for control flow is an antipattern — try/catch has overhead
- *          and the semantics are unclear ("not found" could mean id doesn't exist OR
- *          version mismatch; P2025 doesn't distinguish these cases).
- *
- * Optimized approach: prisma.task.updateMany({ where: { id, version } })
- *   → updateMany returns { count: N } without throwing when 0 rows match.
- *   → count === 0 unambiguously means version conflict (if we pre-check id exists).
- *   → No try/catch needed.  Cleaner, explicit, slightly faster.
- *
- * Two-step when version is provided:
- *   1. updateMany with version guard → check count
- *   2. findUnique to get full updated record with relations (updateMany has no include)
- */
 export async function PATCH(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const user = await getOrCreateDbUser();
+    const orgIds = await getUserOrgIds(user.id);
     const { id } = await params;
+    const taskId = Number(id);
+
+    const access = await verifyTaskAccess(taskId, orgIds);
+    if (!access) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
     const body = await req.json();
     const { version, ...updates } = body;
 
@@ -62,18 +69,22 @@ export async function PATCH(
         ...(updates.dueDate !== undefined && { dueDate: updates.dueDate ? new Date(updates.dueDate) : null }),
     };
 
-    const taskId = Number(id);
+    // Track old values for notifications
+    const oldTask = await prisma.task.findUnique({
+        where: { id: taskId },
+        include: {
+            creator: { select: { email: true } },
+            assignee: { select: { email: true } },
+        },
+    });
 
     if (version !== undefined) {
-        // ── Optimistic concurrency path ─────────────────────────────
-        // updateMany returns { count } — zero exceptions, explicit semantics.
         const { count } = await prisma.task.updateMany({
             where: { id: taskId, version: Number(version) },
             data: { ...data, version: { increment: 1 } },
         });
 
         if (count === 0) {
-            // Distinguish: does the task exist at all?
             const exists = await prisma.task.findUnique({
                 where: { id: taskId },
                 select: { id: true },
@@ -81,7 +92,6 @@ export async function PATCH(
             if (!exists) {
                 return NextResponse.json({ error: "Task not found" }, { status: 404 });
             }
-            // Task exists but version didn't match → conflict
             return NextResponse.json(
                 {
                     error: "Version conflict — task was modified by another request.",
@@ -92,7 +102,6 @@ export async function PATCH(
             );
         }
 
-        // Fetch full record (updateMany has no `include`)
         const task = await prisma.task.findUnique({
             where: { id: taskId },
             include: {
@@ -102,10 +111,13 @@ export async function PATCH(
                 _count: { select: { comments: true } },
             },
         });
+
+        // Send notifications
+        await sendTaskNotifications(oldTask, updates, user.name, task?.title ?? "");
+
         return NextResponse.json(task);
     }
 
-    // ── Legacy path (no version provided) ────────────────────────────
     const task = await prisma.task.update({
         where: { id: taskId },
         data,
@@ -116,6 +128,10 @@ export async function PATCH(
             _count: { select: { comments: true } },
         },
     });
+
+    // Send notifications
+    await sendTaskNotifications(oldTask, updates, user.name, task.title);
+
     return NextResponse.json(task);
 }
 
@@ -124,10 +140,47 @@ export async function DELETE(
     _req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const user = await getOrCreateDbUser();
+    const orgIds = await getUserOrgIds(user.id);
     const { id } = await params;
+
+    const access = await verifyTaskAccess(Number(id), orgIds);
+    if (!access) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
     await prisma.task.update({
         where: { id: Number(id) },
         data: { deletedAt: new Date() },
     });
     return NextResponse.json({ success: true });
+}
+
+// ── Notification helper ──────────────────────────────────
+async function sendTaskNotifications(
+    oldTask: { status: string; creator: { email: string } | null; assignee: { email: string | null } | null } | null,
+    updates: Record<string, unknown>,
+    changedByName: string,
+    taskTitle: string,
+) {
+    if (!oldTask) return;
+
+    // Status change → notify creator and assignee
+    if (updates.status && updates.status !== oldTask.status) {
+        const tmpl = taskStatusChangedEmail(taskTitle, oldTask.status, updates.status as string, changedByName);
+        const recipients = [oldTask.creator?.email, oldTask.assignee?.email].filter(Boolean) as string[];
+        for (const to of [...new Set(recipients)]) {
+            sendEmail({ to, ...tmpl }).catch(() => { });
+        }
+    }
+
+    // Assignee change → notify new assignee
+    if (updates.assigneeId) {
+        const newAssignee = await prisma.user.findUnique({
+            where: { id: Number(updates.assigneeId) },
+            select: { email: true },
+        });
+        if (newAssignee?.email) {
+            const tmpl = taskAssignedEmail(taskTitle, changedByName);
+            sendEmail({ to: newAssignee.email, ...tmpl }).catch(() => { });
+        }
+    }
 }

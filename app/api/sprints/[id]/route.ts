@@ -1,13 +1,17 @@
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 import { prisma } from "@/lib/prisma";
+import { getOrCreateDbUser, getUserOrgIds } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
     _req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const user = await getOrCreateDbUser();
+    const orgIds = await getUserOrgIds(user.id);
     const { id } = await params;
+
     const sprint = await prisma.sprint.findUnique({
         where: { id: Number(id) },
         include: {
@@ -24,7 +28,9 @@ export async function GET(
             },
         },
     });
-    if (!sprint) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!sprint || !orgIds.includes(sprint.project.organizationId)) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     return NextResponse.json(sprint);
 }
 
@@ -32,17 +38,24 @@ export async function PATCH(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const user = await getOrCreateDbUser();
+    const orgIds = await getUserOrgIds(user.id);
     const { id } = await params;
+
+    const existing = await prisma.sprint.findUnique({
+        where: { id: Number(id) },
+        select: { project: { select: { organizationId: true } }, projectId: true },
+    });
+    if (!existing || !orgIds.includes(existing.project.organizationId)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const body = await req.json();
-    // Handle sprint activation: deactivate sibling sprints first
     if (body.isActive === true) {
-        const sprint = await prisma.sprint.findUnique({ where: { id: Number(id) } });
-        if (sprint) {
-            await prisma.sprint.updateMany({
-                where: { projectId: sprint.projectId, isActive: true },
-                data: { isActive: false },
-            });
-        }
+        await prisma.sprint.updateMany({
+            where: { projectId: existing.projectId, isActive: true },
+            data: { isActive: false },
+        });
     }
     const sprint = await prisma.sprint.update({
         where: { id: Number(id) },
@@ -60,7 +73,18 @@ export async function DELETE(
     _req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const user = await getOrCreateDbUser();
+    const orgIds = await getUserOrgIds(user.id);
     const { id } = await params;
+
+    const existing = await prisma.sprint.findUnique({
+        where: { id: Number(id) },
+        select: { project: { select: { organizationId: true } } },
+    });
+    if (!existing || !orgIds.includes(existing.project.organizationId)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     await prisma.sprint.delete({ where: { id: Number(id) } });
     return NextResponse.json({ success: true });
 }

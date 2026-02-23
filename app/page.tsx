@@ -8,7 +8,7 @@ type Org = {
 	id: number;
 	name: string;
 	owner: { id: number; name: string; email: string };
-	_count: { members: number; projects: number };
+	_count: { memberships: number; projects: number };
 	createdAt: string;
 };
 
@@ -16,11 +16,10 @@ export default function DashboardPage() {
 	const [orgs, setOrgs] = useState<Org[]>(() => cache.get<Org[]>("orgs") ?? []);
 	const [loading, setLoading] = useState(() => !cache.get<Org[]>("orgs"));
 	const [showCreate, setShowCreate] = useState(false);
-	const [form, setForm] = useState({ name: "", ownerName: "", ownerEmail: "" });
+	const [orgName, setOrgName] = useState("");
 	const [creating, setCreating] = useState(false);
 
 	const loadOrgs = async () => {
-		// Show loading only on cold cache; cached data is already rendered
 		if (!cache.get<Org[]>("orgs")) setLoading(true);
 		const r = await fetch("/api/orgs");
 		const data = await r.json();
@@ -32,17 +31,17 @@ export default function DashboardPage() {
 	useEffect(() => { loadOrgs(); }, []);
 
 	const createOrg = async () => {
-		if (!form.name || !form.ownerName || !form.ownerEmail) return;
+		if (!orgName.trim()) return;
 		setCreating(true);
 		await fetch("/api/orgs", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(form),
+			body: JSON.stringify({ name: orgName.trim() }),
 		});
-		setForm({ name: "", ownerName: "", ownerEmail: "" });
+		setOrgName("");
 		setShowCreate(false);
 		setCreating(false);
-		cache.del("orgs"); // invalidate so next load refetches fresh list
+		cache.del("orgs");
 		loadOrgs();
 	};
 
@@ -78,7 +77,7 @@ export default function DashboardPage() {
 				{[
 					{ label: "Organizations", value: orgs.length, icon: "⬡" },
 					{ label: "Total Projects", value: orgs.reduce((s, o) => s + o._count.projects, 0), icon: "◈" },
-					{ label: "Team Members", value: orgs.reduce((s, o) => s + o._count.members, 0), icon: "◎" },
+					{ label: "Team Members", value: orgs.reduce((s, o) => s + o._count.memberships, 0), icon: "◎" },
 				].map((stat) => (
 					<div key={stat.label} className="glass" style={{ padding: "20px 24px" }}>
 						<div style={{ fontSize: "1.5rem", marginBottom: "8px" }}>{stat.icon}</div>
@@ -90,7 +89,7 @@ export default function DashboardPage() {
 
 			{/* Org list */}
 			<h2 style={{ fontSize: "1rem", fontWeight: 600, color: "var(--text-muted)", marginBottom: "16px", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-				Organizations
+				Your Organizations
 			</h2>
 
 			{loading ? (
@@ -121,7 +120,7 @@ export default function DashboardPage() {
 								</div>
 								<div style={{ display: "flex", gap: "16px", fontSize: "0.82rem", color: "var(--text-muted)" }}>
 									<span>📁 {org._count.projects} projects</span>
-									<span>👥 {org._count.members} members</span>
+									<span>👥 {org._count.memberships} members</span>
 								</div>
 							</div>
 						</Link>
@@ -129,30 +128,24 @@ export default function DashboardPage() {
 				</div>
 			)}
 
-			{/* Create Org Modal */}
+			{/* Create Org Modal — simplified: only org name needed */}
 			{showCreate && (
 				<div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowCreate(false)}>
 					<div className="modal-box anim-modal" style={{ padding: "32px" }}>
 						<h2 style={{ fontWeight: 700, fontSize: "1.2rem", marginBottom: "6px" }}>Create Organization</h2>
 						<p style={{ color: "var(--text-muted)", fontSize: "0.875rem", marginBottom: "24px" }}>
-							This will also create the owner account.
+							You will be set as the owner automatically.
 						</p>
-						<div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-							{[
-								{ label: "Organization Name", key: "name", placeholder: "Acme Corp" },
-								{ label: "Your Name", key: "ownerName", placeholder: "Jane Doe" },
-								{ label: "Your Email", key: "ownerEmail", placeholder: "jane@acme.com" },
-							].map(({ label, key, placeholder }) => (
-								<div key={key}>
-									<label style={{ display: "block", fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "6px" }}>{label}</label>
-									<input
-										className="input-field"
-										placeholder={placeholder}
-										value={form[key as keyof typeof form]}
-										onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-									/>
-								</div>
-							))}
+						<div>
+							<label style={{ display: "block", fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "6px" }}>Organization Name</label>
+							<input
+								className="input-field"
+								placeholder="Acme Corp"
+								value={orgName}
+								onChange={(e) => setOrgName(e.target.value)}
+								onKeyDown={(e) => e.key === "Enter" && createOrg()}
+								autoFocus
+							/>
 						</div>
 						<div style={{ display: "flex", gap: "10px", marginTop: "24px", justifyContent: "flex-end" }}>
 							<button className="btn-ghost" onClick={() => setShowCreate(false)}>Cancel</button>

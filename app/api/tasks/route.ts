@@ -1,32 +1,27 @@
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@/generated/prisma";
+import { getOrCreateDbUser, getUserOrgIds } from "@/lib/auth";
+import { sendEmail, taskAssignedEmail } from "@/lib/email";
 import { NextRequest, NextResponse } from "next/server";
 
-/**
- * GET /api/tasks
- * Supports CURSOR PAGINATION via ?cursor=<taskId>&limit=<n>
- *
- * Response shape when paginating:
- *   { data: Task[], nextCursor: number | null, hasMore: boolean }
- *
- * Without cursor params, returns a plain Task[] for backwards-compatibility
- * with existing sprint board usage.
- */
 export async function GET(req: NextRequest) {
+    const user = await getOrCreateDbUser();
+    const orgIds = await getUserOrgIds(user.id);
+
     const { searchParams } = new URL(req.url);
     const sprintId = searchParams.get("sprintId");
     const assigneeId = searchParams.get("assigneeId");
-    const cursorId = searchParams.get("cursor");          // task ID string | null
+    const cursorId = searchParams.get("cursor");
     const limitParam = searchParams.get("limit");
     const paginate = limitParam !== null || cursorId !== null;
-    const limit = Math.min(Number(limitParam ?? 20), 100); // cap at 100
+    const limit = Math.min(Number(limitParam ?? 20), 100);
 
     const where = {
         deletedAt: null,
         ...(sprintId && { sprintId: Number(sprintId) }),
         ...(assigneeId && { assigneeId: Number(assigneeId) }),
+        sprint: { project: { organizationId: { in: orgIds } } },
     };
 
     const include = {
@@ -37,7 +32,6 @@ export async function GET(req: NextRequest) {
     };
 
     if (!paginate) {
-        // Legacy: return flat array (sprint board still uses this)
         const tasks = await prisma.task.findMany({
             where,
             include,
@@ -46,13 +40,11 @@ export async function GET(req: NextRequest) {
         return NextResponse.json(tasks);
     }
 
-    // ── Cursor pagination ───────────────────────────────────────
-    // Fetch one extra record to determine whether there is a next page.
     const tasks = await prisma.task.findMany({
         take: limit + 1,
         ...(cursorId && {
             cursor: { id: Number(cursorId) },
-            skip: 1,            // skip the cursor record itself
+            skip: 1,
         }),
         where,
         include,
@@ -67,10 +59,23 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-    const { title, description, sprintId, creatorId, assigneeId, priority, dueDate, labelIds, status } =
+    const user = await getOrCreateDbUser();
+    const orgIds = await getUserOrgIds(user.id);
+
+    const { title, description, sprintId, assigneeId, priority, dueDate, labelIds, status } =
         await req.json();
-    if (!title || !sprintId || !creatorId) {
-        return NextResponse.json({ error: "title, sprintId, creatorId required" }, { status: 400 });
+
+    if (!title || !sprintId) {
+        return NextResponse.json({ error: "title and sprintId required" }, { status: 400 });
+    }
+
+    // Verify sprint belongs to user's org
+    const sprint = await prisma.sprint.findUnique({
+        where: { id: Number(sprintId) },
+        select: { project: { select: { organizationId: true } } },
+    });
+    if (!sprint || !orgIds.includes(sprint.project.organizationId)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const task = await prisma.$transaction(async (tx) => {
@@ -79,7 +84,7 @@ export async function POST(req: NextRequest) {
                 title,
                 description,
                 sprintId: Number(sprintId),
-                creatorId: Number(creatorId),
+                creatorId: user.id,   // use authenticated user
                 ...(status && { status }),
                 ...(assigneeId && { assigneeId: Number(assigneeId) }),
                 ...(priority && { priority }),
@@ -98,10 +103,17 @@ export async function POST(req: NextRequest) {
         where: { id: task.id },
         include: {
             creator: { select: { id: true, name: true } },
-            assignee: { select: { id: true, name: true } },
+            assignee: { select: { id: true, name: true, email: true } },
             labels: { include: { label: true } },
             _count: { select: { comments: true } },
         },
     });
+
+    // Send email notification to assignee
+    if (assigneeId && full?.assignee?.email) {
+        const tmpl = taskAssignedEmail(title, user.name);
+        sendEmail({ to: full.assignee.email, ...tmpl }).catch(() => { });
+    }
+
     return NextResponse.json(full, { status: 201 });
 }
