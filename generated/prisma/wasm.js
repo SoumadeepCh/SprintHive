@@ -144,6 +144,17 @@ exports.Prisma.UserOrganizationScalarFieldEnum = {
   joinedAt: 'joinedAt'
 };
 
+exports.Prisma.OrgInvitationScalarFieldEnum = {
+  id: 'id',
+  token: 'token',
+  email: 'email',
+  organizationId: 'organizationId',
+  inviterId: 'inviterId',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.ProjectScalarFieldEnum = {
   id: 'id',
   name: 'name',
@@ -217,6 +228,12 @@ exports.OrgRole = exports.$Enums.OrgRole = {
   MEMBER: 'MEMBER'
 };
 
+exports.InvitationStatus = exports.$Enums.InvitationStatus = {
+  PENDING: 'PENDING',
+  ACCEPTED: 'ACCEPTED',
+  DECLINED: 'DECLINED'
+};
+
 exports.TaskStatus = exports.$Enums.TaskStatus = {
   TODO: 'TODO',
   IN_PROGRESS: 'IN_PROGRESS',
@@ -235,6 +252,7 @@ exports.Prisma.ModelName = {
   Organization: 'Organization',
   User: 'User',
   UserOrganization: 'UserOrganization',
+  OrgInvitation: 'OrgInvitation',
   Project: 'Project',
   Sprint: 'Sprint',
   Task: 'Task',

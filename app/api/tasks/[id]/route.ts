@@ -69,6 +69,25 @@ export async function PATCH(
         ...(updates.dueDate !== undefined && { dueDate: updates.dueDate ? new Date(updates.dueDate) : null }),
     };
 
+    // Verify assignee is a member of the task's organization
+    if (updates.assigneeId) {
+        const orgId = access.sprint.project.organizationId;
+        const assigneeMembership = await prisma.userOrganization.findUnique({
+            where: {
+                userId_organizationId: {
+                    userId: Number(updates.assigneeId),
+                    organizationId: orgId,
+                },
+            },
+        });
+        if (!assigneeMembership) {
+            return NextResponse.json(
+                { error: "Assignee is not a member of this organization" },
+                { status: 400 }
+            );
+        }
+    }
+
     // Track old values for notifications
     const oldTask = await prisma.task.findUnique({
         where: { id: taskId },

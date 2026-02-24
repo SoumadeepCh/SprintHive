@@ -78,6 +78,24 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // Verify assignee is a member of the organization
+    if (assigneeId) {
+        const assigneeMembership = await prisma.userOrganization.findUnique({
+            where: {
+                userId_organizationId: {
+                    userId: Number(assigneeId),
+                    organizationId: sprint.project.organizationId,
+                },
+            },
+        });
+        if (!assigneeMembership) {
+            return NextResponse.json(
+                { error: "Assignee is not a member of this organization" },
+                { status: 400 }
+            );
+        }
+    }
+
     const task = await prisma.$transaction(async (tx) => {
         const task = await tx.task.create({
             data: {

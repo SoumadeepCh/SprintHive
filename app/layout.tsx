@@ -7,6 +7,7 @@ import {
   SignedOut,
   UserButton,
 } from "@clerk/nextjs";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -54,6 +55,18 @@ export default function RootLayout({
             </SignedIn>
           </header>
           {children}
+          <Toaster
+            theme="dark"
+            position="bottom-right"
+            toastOptions={{
+              style: {
+                background: "rgba(20,20,35,0.95)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                color: "#e2e2e2",
+                backdropFilter: "blur(12px)",
+              },
+            }}
+          />
         </body>
       </html>
     </ClerkProvider>

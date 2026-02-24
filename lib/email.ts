@@ -1,12 +1,30 @@
 /**
- * lib/email.ts — Email notifications via Resend API
+ * lib/email.ts — Email notifications via Nodemailer + Brevo SMTP
  *
  * Sends transactional emails for task events (assigned, status changed, etc.)
- * Uses the Resend REST API directly — no SDK dependency needed.
+ * Uses Brevo's free SMTP relay — no custom domain required.
+ *
+ * Env vars needed:
+ *   SMTP_HOST     = smtp-relay.brevo.com
+ *   SMTP_PORT     = 587
+ *   SMTP_USER     = (your Brevo login email)
+ *   SMTP_PASS     = (your Brevo SMTP key, NOT the account password)
+ *   EMAIL_FROM    = SprintHive <your-email@gmail.com>
  */
 
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const FROM_EMAIL = process.env.EMAIL_FROM ?? "SprintHive <onboarding@resend.dev>";
+import nodemailer from "nodemailer";
+
+const FROM_EMAIL = `"SprintHive" <${process.env.EMAIL_FROM}>`;
+
+const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST ?? "smtp-relay.brevo.com",
+    port: Number(process.env.SMTP_PORT ?? 587),
+    secure: false, // STARTTLS
+    auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+    },
+});
 
 type EmailPayload = {
     to: string;
@@ -15,25 +33,14 @@ type EmailPayload = {
 };
 
 export async function sendEmail({ to, subject, html }: EmailPayload) {
-    if (!RESEND_API_KEY) {
-        console.warn("[Email] RESEND_API_KEY not set — skipping email to", to);
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        console.warn("[Email] SMTP_USER / SMTP_PASS not set — skipping email to", to);
         return;
     }
 
     try {
-        const res = await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${RESEND_API_KEY}`,
-            },
-            body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
-        });
-
-        if (!res.ok) {
-            const err = await res.text();
-            console.error("[Email] Failed to send:", res.status, err);
-        }
+        await transporter.sendMail({ from: FROM_EMAIL, to, subject, html });
+        console.log("[Email] Sent to", to);
     } catch (err) {
         console.error("[Email] Error sending email:", err);
     }
@@ -73,6 +80,32 @@ export function taskStatusChangedEmail(
                 <div style="background: #1a1a2e; color: #fff; padding: 16px 20px; border-radius: 10px; margin: 16px 0;">
                     <strong>${taskTitle}</strong><br/>
                     <span style="color: #f87171;">${oldStatus}</span> → <span style="color: #6ee7b7;">${newStatus}</span>
+                </div>
+                <p style="color: #888; font-size: 0.85em; margin-top: 24px;">— SprintHive Notifications</p>
+            </div>
+        `,
+    };
+}
+
+export function orgInvitationEmail(
+    orgName: string,
+    inviterName: string,
+    acceptUrl: string,
+    declineUrl: string
+) {
+    return {
+        subject: `🤝 ${inviterName} invited you to join ${orgName}`,
+        html: `
+            <div style="font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto;">
+                <h2 style="color: #7c6ff7;">Organization Invitation</h2>
+                <p><strong>${inviterName}</strong> has invited you to join:</p>
+                <div style="background: #1a1a2e; color: #fff; padding: 16px 20px; border-radius: 10px; margin: 16px 0;">
+                    <strong style="font-size: 1.1em;">${orgName}</strong>
+                </div>
+                <p style="color: #ccc; font-size: 0.9em;">Click below to accept or decline this invitation:</p>
+                <div style="margin: 24px 0; display: flex; gap: 12px;">
+                    <a href="${acceptUrl}" style="display: inline-block; background: #7c6ff7; color: #fff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.95em;">Accept Invitation</a>
+                    <a href="${declineUrl}" style="display: inline-block; background: transparent; color: #f87171; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.95em; border: 1px solid #f87171;">Decline</a>
                 </div>
                 <p style="color: #888; font-size: 0.85em; margin-top: 24px;">— SprintHive Notifications</p>
             </div>

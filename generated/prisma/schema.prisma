@@ -31,6 +31,12 @@ enum OrgRole {
   MEMBER
 }
 
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
 // ── Models ───────────────────────────────────────────────
 
 model Organization {
@@ -40,20 +46,22 @@ model Organization {
   owner       User               @relation("OrgOwner", fields: [ownerId], references: [id])
   memberships UserOrganization[]
   projects    Project[]
+  invitations OrgInvitation[]
   createdAt   DateTime           @default(now())
 }
 
 model User {
-  id            Int                @id @default(autoincrement())
-  clerkId       String?            @unique
-  name          String
-  email         String             @unique
-  memberships   UserOrganization[]
-  ownedOrgs     Organization[]     @relation("OrgOwner")
-  createdTasks  Task[]             @relation("TaskCreator")
-  assignedTasks Task[]             @relation("TaskAssignee")
-  comments      Comment[]
-  createdAt     DateTime           @default(now())
+  id              Int                @id @default(autoincrement())
+  clerkId         String?            @unique
+  name            String
+  email           String             @unique
+  memberships     UserOrganization[]
+  ownedOrgs       Organization[]     @relation("OrgOwner")
+  createdTasks    Task[]             @relation("TaskCreator")
+  assignedTasks   Task[]             @relation("TaskAssignee")
+  comments        Comment[]
+  sentInvitations OrgInvitation[]    @relation("InvitationInviter")
+  createdAt       DateTime           @default(now())
 }
 
 model UserOrganization {
@@ -66,6 +74,22 @@ model UserOrganization {
 
   @@id([userId, organizationId])
   @@index([organizationId])
+}
+
+model OrgInvitation {
+  id             Int              @id @default(autoincrement())
+  token          String           @unique @default(uuid())
+  email          String
+  organizationId Int
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inviterId      Int
+  inviter        User             @relation("InvitationInviter", fields: [inviterId], references: [id])
+  status         InvitationStatus @default(PENDING)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([organizationId, status])
+  @@index([email])
 }
 
 model Project {

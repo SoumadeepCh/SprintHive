@@ -3,6 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { cache } from "@/lib/cache";
+import { toast } from "sonner";
+import {
+	Hexagon, Search, ClipboardList, ListTodo, ScrollText,
+	Plus, FolderKanban, Users, Building2
+} from "lucide-react";
 
 type Org = {
 	id: number;
@@ -33,16 +38,22 @@ export default function DashboardPage() {
 	const createOrg = async () => {
 		if (!orgName.trim()) return;
 		setCreating(true);
-		await fetch("/api/orgs", {
+		const res = await fetch("/api/orgs", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ name: orgName.trim() }),
 		});
-		setOrgName("");
-		setShowCreate(false);
+		if (res.ok) {
+			toast.success("Organization created!", { description: orgName.trim() });
+			setOrgName("");
+			setShowCreate(false);
+			cache.del("orgs");
+			loadOrgs();
+		} else {
+			const data = await res.json();
+			toast.error("Failed to create organization", { description: data.error });
+		}
 		setCreating(false);
-		cache.del("orgs");
-		loadOrgs();
 	};
 
 	return (
@@ -51,7 +62,7 @@ export default function DashboardPage() {
 			<div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "40px" }}>
 				<div>
 					<div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "6px" }}>
-						<span style={{ fontSize: "1.6rem" }}>⬡</span>
+						<Hexagon size={28} style={{ color: "var(--accent)" }} />
 						<h1 style={{
 							fontSize: "2rem", fontWeight: 700, letterSpacing: "-0.03em",
 							background: "linear-gradient(135deg, #a78bfa 0%, #6ee7b7 100%)",
@@ -63,11 +74,20 @@ export default function DashboardPage() {
 					</p>
 				</div>
 				<div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-					<Link href="/search" className="btn-ghost">🔍 Search</Link>
-					<Link href="/tasks" className="btn-ghost">Tasks</Link>
-					<Link href="/logs" className="btn-ghost">Logs</Link>
-					<button className="btn-primary" onClick={() => setShowCreate(true)}>
-						+ New Organization
+					<Link href="/search" className="btn-ghost" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+						<Search size={15} /> Search
+					</Link>
+					<Link href="/my-tasks" className="btn-ghost" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+						<ClipboardList size={15} /> My Tasks
+					</Link>
+					<Link href="/tasks" className="btn-ghost" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+						<ListTodo size={15} /> Tasks
+					</Link>
+					<Link href="/logs" className="btn-ghost" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+						<ScrollText size={15} /> Logs
+					</Link>
+					<button className="btn-primary" onClick={() => setShowCreate(true)} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+						<Plus size={15} /> New Organization
 					</button>
 				</div>
 			</div>
@@ -75,12 +95,12 @@ export default function DashboardPage() {
 			{/* Stats bar */}
 			<div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "16px", marginBottom: "36px" }}>
 				{[
-					{ label: "Organizations", value: orgs.length, icon: "⬡" },
-					{ label: "Total Projects", value: orgs.reduce((s, o) => s + o._count.projects, 0), icon: "◈" },
-					{ label: "Team Members", value: orgs.reduce((s, o) => s + o._count.memberships, 0), icon: "◎" },
+					{ label: "Organizations", value: orgs.length, icon: <Building2 size={22} style={{ color: "var(--accent)" }} /> },
+					{ label: "Total Projects", value: orgs.reduce((s, o) => s + o._count.projects, 0), icon: <FolderKanban size={22} style={{ color: "#6ee7b7" }} /> },
+					{ label: "Team Members", value: orgs.reduce((s, o) => s + o._count.memberships, 0), icon: <Users size={22} style={{ color: "#a78bfa" }} /> },
 				].map((stat) => (
 					<div key={stat.label} className="glass" style={{ padding: "20px 24px" }}>
-						<div style={{ fontSize: "1.5rem", marginBottom: "8px" }}>{stat.icon}</div>
+						<div style={{ marginBottom: "8px" }}>{stat.icon}</div>
 						<div style={{ fontSize: "1.8rem", fontWeight: 700, color: "var(--accent)" }}>{stat.value}</div>
 						<div style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: "2px" }}>{stat.label}</div>
 					</div>
@@ -96,7 +116,7 @@ export default function DashboardPage() {
 				<div style={{ padding: "60px", textAlign: "center", color: "var(--text-muted)" }}>Loading…</div>
 			) : orgs.length === 0 ? (
 				<div className="glass" style={{ padding: "60px", textAlign: "center" }}>
-					<div style={{ fontSize: "3rem", marginBottom: "16px", opacity: 0.3 }}>⬡</div>
+					<Building2 size={40} style={{ margin: "0 auto 12px", opacity: 0.3 }} />
 					<p style={{ color: "var(--text-muted)" }}>No organizations yet. Create one to get started.</p>
 				</div>
 			) : (
@@ -119,8 +139,8 @@ export default function DashboardPage() {
 									</div>
 								</div>
 								<div style={{ display: "flex", gap: "16px", fontSize: "0.82rem", color: "var(--text-muted)" }}>
-									<span>📁 {org._count.projects} projects</span>
-									<span>👥 {org._count.memberships} members</span>
+									<span style={{ display: "flex", alignItems: "center", gap: "4px" }}><FolderKanban size={13} /> {org._count.projects} projects</span>
+									<span style={{ display: "flex", alignItems: "center", gap: "4px" }}><Users size={13} /> {org._count.memberships} members</span>
 								</div>
 							</div>
 						</Link>
@@ -128,11 +148,13 @@ export default function DashboardPage() {
 				</div>
 			)}
 
-			{/* Create Org Modal — simplified: only org name needed */}
+			{/* Create Org Modal */}
 			{showCreate && (
 				<div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowCreate(false)}>
 					<div className="modal-box anim-modal" style={{ padding: "32px" }}>
-						<h2 style={{ fontWeight: 700, fontSize: "1.2rem", marginBottom: "6px" }}>Create Organization</h2>
+						<h2 style={{ fontWeight: 700, fontSize: "1.2rem", marginBottom: "6px", display: "flex", alignItems: "center", gap: "8px" }}>
+							<Building2 size={20} /> Create Organization
+						</h2>
 						<p style={{ color: "var(--text-muted)", fontSize: "0.875rem", marginBottom: "24px" }}>
 							You will be set as the owner automatically.
 						</p>
