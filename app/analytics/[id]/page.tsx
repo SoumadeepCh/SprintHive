@@ -168,7 +168,7 @@ function WorkloadChart({ data }: { data: WorkloadRow[] }) {
                                 <span style={{
                                     display: "inline-flex", alignItems: "center", justifyContent: "center",
                                     width: "20px", height: "20px", borderRadius: "50%", marginRight: "7px",
-                                    background: "linear-gradient(135deg,#7c6ff7,#6ee7b7)", fontSize: "0.65rem", fontWeight: 700, color: "#fff",
+                                    background: "var(--primary)", border: "4px solid var(--border)", fontSize: "0.65rem", fontWeight: 700, color: "#fff",
                                 }}>
                                     {row.name[0].toUpperCase()}
                                 </span>
@@ -477,7 +477,7 @@ export default function AnalyticsPage() {
             {/* SQL callout */}
             <div style={{
                 marginTop: "28px", padding: "18px 22px", borderRadius: "var(--radius)",
-                background: "linear-gradient(135deg, rgba(124,111,247,0.08), rgba(110,231,183,0.05))",
+                background: "var(--surface)", border: "4px solid var(--border)",
                 border: "1px solid rgba(124,111,247,0.2)",
                 fontSize: "0.8rem", color: "var(--text-muted)", lineHeight: 1.7,
             }}>

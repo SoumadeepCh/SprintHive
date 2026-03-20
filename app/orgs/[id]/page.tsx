@@ -120,7 +120,7 @@ export default function OrgPage() {
                 <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                     <div style={{
                         width: "52px", height: "52px", borderRadius: "14px", flexShrink: 0,
-                        background: "linear-gradient(135deg, #7c6ff7, #6ee7b7)",
+                        background: "var(--primary)", border: "4px solid var(--border)",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         fontWeight: 700, fontSize: "1.4rem", color: "#fff",
                     }}>
@@ -176,7 +176,7 @@ export default function OrgPage() {
                     <div key={m.id} className="glass-sm" style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: "10px" }}>
                         <div style={{
                             width: "30px", height: "30px", borderRadius: "50%", flexShrink: 0,
-                            background: "linear-gradient(135deg, #7c6ff7, #6ee7b7)",
+                            background: "var(--primary)", border: "4px solid var(--border)",
                             display: "flex", alignItems: "center", justifyContent: "center",
                             fontWeight: 700, fontSize: "0.8rem", color: "#fff",
                         }}>
@@ -216,7 +216,7 @@ export default function OrgPage() {
                                 </div>
                                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                                     <span style={{
-                                        padding: "3px 10px", borderRadius: "12px", fontSize: "0.7rem", fontWeight: 600,
+                                        padding: "3px 10px", borderRadius: "0px", fontSize: "0.7rem", fontWeight: 600,
                                         background: "rgba(251,191,36,0.12)", color: "#fbbf24",
                                     }}>PENDING</span>
                                     <button

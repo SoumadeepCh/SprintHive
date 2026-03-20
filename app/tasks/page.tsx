@@ -140,7 +140,7 @@ export default function TasksBrowser() {
                                 <div style={{ fontWeight: 500, fontSize: "0.9rem", marginBottom: "3px" }}>{task.title}</div>
                                 <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                                     {task.labels.map(({ label }) => (
-                                        <span key={label.id} style={{ padding: "1px 7px", borderRadius: "12px", fontSize: "0.7rem", fontWeight: 600, background: `${label.color}22`, color: label.color }}>{label.name}</span>
+                                        <span key={label.id} style={{ padding: "1px 7px", borderRadius: "0px", fontSize: "0.7rem", fontWeight: 600, background: `${label.color}22`, color: label.color }}>{label.name}</span>
                                     ))}
                                     {task._count.comments > 0 && (
                                         <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>💬 {task._count.comments}</span>
@@ -180,7 +180,7 @@ export default function TasksBrowser() {
                             {task.assignee ? (
                                 <div title={task.assignee.name} style={{
                                     width: "26px", height: "26px", borderRadius: "50%",
-                                    background: "linear-gradient(135deg,#7c6ff7,#6ee7b7)",
+                                    background: "var(--primary)", border: "4px solid var(--border)",
                                     display: "flex", alignItems: "center", justifyContent: "center",
                                     fontSize: "0.65rem", fontWeight: 700, color: "#fff", flexShrink: 0,
                                 }}>
@@ -220,7 +220,7 @@ export default function TasksBrowser() {
             {/* Technique callout */}
             <div style={{
                 marginTop: "28px", padding: "16px 20px", borderRadius: "var(--radius)",
-                background: "linear-gradient(135deg, rgba(124,111,247,0.06), rgba(110,231,183,0.04))",
+                background: "var(--surface)", border: "4px solid var(--border)",
                 border: "1px solid rgba(124,111,247,0.18)",
                 fontSize: "0.8rem", color: "var(--text-muted)", lineHeight: 1.7,
             }}>

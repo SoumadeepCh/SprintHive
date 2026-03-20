@@ -5,8 +5,7 @@ import Link from "next/link";
 import { cache } from "@/lib/cache";
 import { toast } from "sonner";
 import {
-	Hexagon, Search, ClipboardList, ListTodo, ScrollText,
-	Plus, FolderKanban, Users, Building2
+	Hexagon, Plus, FolderKanban, Users, Building2
 } from "lucide-react";
 
 type Org = {
@@ -64,32 +63,17 @@ export default function DashboardPage() {
 					<div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "6px" }}>
 						<Hexagon size={28} style={{ color: "var(--accent)" }} />
 						<h1 style={{
-							fontSize: "2rem", fontWeight: 700, letterSpacing: "-0.03em",
-							background: "linear-gradient(135deg, #a78bfa 0%, #6ee7b7 100%)",
-							WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+							fontSize: "2.4rem", fontWeight: 800, letterSpacing: "-0.03em",
+							color: "var(--text)", fontFamily: "'Space Grotesk', sans-serif", textTransform: "uppercase"
 						}}>Sprint Manager</h1>
 					</div>
 					<p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>
 						Team Task &amp; Sprint Manager — Jira-lite
 					</p>
 				</div>
-				<div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-					<Link href="/search" className="btn-ghost" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-						<Search size={15} /> Search
-					</Link>
-					<Link href="/my-tasks" className="btn-ghost" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-						<ClipboardList size={15} /> My Tasks
-					</Link>
-					<Link href="/tasks" className="btn-ghost" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-						<ListTodo size={15} /> Tasks
-					</Link>
-					<Link href="/logs" className="btn-ghost" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-						<ScrollText size={15} /> Logs
-					</Link>
-					<button className="btn-primary" onClick={() => setShowCreate(true)} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-						<Plus size={15} /> New Organization
-					</button>
-				</div>
+				<button className="btn-primary" onClick={() => setShowCreate(true)} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+					<Plus size={15} /> New Organization
+				</button>
 			</div>
 
 			{/* Stats bar */}
@@ -126,10 +110,10 @@ export default function DashboardPage() {
 							<div className="glass kanban-card" style={{ padding: "22px 24px", cursor: "pointer" }}>
 								<div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
 									<div style={{
-										width: "40px", height: "40px", borderRadius: "10px", flexShrink: 0,
-										background: "linear-gradient(135deg, #7c6ff7, #6ee7b7)",
+										width: "44px", height: "44px", borderRadius: "0px", flexShrink: 0,
+										background: "var(--primary)", border: "4px solid var(--border)",
 										display: "flex", alignItems: "center", justifyContent: "center",
-										fontWeight: 700, fontSize: "1.1rem", color: "#fff",
+										fontWeight: 800, fontSize: "1.2rem", color: "var(--text)", fontFamily: "'Space Grotesk', sans-serif"
 									}}>
 										{org.name[0].toUpperCase()}
 									</div>

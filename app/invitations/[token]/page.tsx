@@ -157,7 +157,7 @@ export default function InvitationPage() {
                 </p>
 
                 <div style={{
-                    background: "linear-gradient(135deg, rgba(124,111,247,0.1), rgba(110,231,183,0.06))",
+                    background: "var(--surface)", border: "4px solid var(--border)",
                     border: "1px solid rgba(124,111,247,0.25)",
                     borderRadius: "var(--radius)",
                     padding: "24px",
@@ -165,7 +165,7 @@ export default function InvitationPage() {
                 }}>
                     <div style={{
                         width: "56px", height: "56px", borderRadius: "14px", margin: "0 auto 14px",
-                        background: "linear-gradient(135deg, #7c6ff7, #6ee7b7)",
+                        background: "var(--primary)", border: "4px solid var(--border)",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         fontWeight: 700, fontSize: "1.5rem", color: "#fff",
                     }}>

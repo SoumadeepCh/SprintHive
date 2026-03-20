@@ -27,7 +27,7 @@ export default function GlobalError({
                 {/* Icon */}
                 <div style={{
                     width: "80px", height: "80px", borderRadius: "20px",
-                    background: "linear-gradient(135deg, rgba(248,113,113,0.15), rgba(248,113,113,0.05))",
+                    background: "var(--surface)", border: "4px solid var(--border)",
                     border: "1px solid rgba(248,113,113,0.2)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     margin: "0 auto 24px",
@@ -61,7 +61,7 @@ export default function GlobalError({
                         fontFamily: "monospace",
                         background: "rgba(255,255,255,0.03)",
                         padding: "6px 14px",
-                        borderRadius: "8px",
+                        borderRadius: "0px",
                         display: "inline-block",
                     }}>
                         Error ID: {error.digest}

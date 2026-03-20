@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import {
   ClerkProvider,
-  SignInButton,
-  SignUpButton,
   SignedIn,
   SignedOut,
-  UserButton,
 } from "@clerk/nextjs";
 import { Toaster } from "sonner";
+import Sidebar from "./components/Sidebar";
+import LandingPage from "./components/LandingPage";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -25,36 +24,26 @@ export default function RootLayout({
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
           <link
-            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap"
             rel="stylesheet"
           />
         </head>
         <body>
-          <header style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            alignItems: "center",
-            padding: "12px 24px",
-            gap: "12px",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
-          }}>
-            <SignedOut>
-              <SignInButton>
-                <button className="btn-ghost">Sign In</button>
-              </SignInButton>
-              <SignUpButton>
-                <button className="btn-primary">Sign Up</button>
-              </SignUpButton>
-            </SignedOut>
-            <SignedIn>
-              <UserButton
-                appearance={{
-                  elements: { avatarBox: { width: "36px", height: "36px" } },
-                }}
-              />
-            </SignedIn>
-          </header>
-          {children}
+          {/* Signed-out: show the landing page */}
+          <SignedOut>
+            <LandingPage />
+          </SignedOut>
+
+          {/* Signed-in: sidebar + content */}
+          <SignedIn>
+            <div className="app-shell">
+              <Sidebar />
+              <main className="app-main">
+                {children}
+              </main>
+            </div>
+          </SignedIn>
+
           <Toaster
             theme="dark"
             position="bottom-right"

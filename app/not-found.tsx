@@ -17,9 +17,7 @@ export default function NotFound() {
                     fontWeight: 800,
                     letterSpacing: "-0.05em",
                     lineHeight: 1,
-                    background: "linear-gradient(135deg, #7c6ff7 0%, #6ee7b7 50%, #a78bfa 100%)",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
+                    color: "var(--text)", fontFamily: "\'Space Grotesk\', sans-serif",
                     marginBottom: "8px",
                     filter: "drop-shadow(0 0 40px rgba(124,111,247,0.3))",
                 }}>

@@ -209,7 +209,7 @@ export default function SprintBoard() {
                                         <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginBottom: "8px" }}>
                                             {task.labels.map(({ label }) => (
                                                 <span key={label.id} style={{
-                                                    padding: "1px 7px", borderRadius: "12px", fontSize: "0.7rem", fontWeight: 600,
+                                                    padding: "1px 7px", borderRadius: "0px", fontSize: "0.7rem", fontWeight: 600,
                                                     background: `${label.color}22`, color: label.color,
                                                 }}>{label.name}</span>
                                             ))}
@@ -229,7 +229,7 @@ export default function SprintBoard() {
                                                 title={task.assignee.name}
                                                 style={{
                                                     width: "24px", height: "24px", borderRadius: "50%",
-                                                    background: "linear-gradient(135deg,#7c6ff7,#6ee7b7)",
+                                                    background: "var(--primary)", border: "4px solid var(--border)",
                                                     display: "flex", alignItems: "center", justifyContent: "center",
                                                     fontSize: "0.65rem", fontWeight: 700, color: "#fff",
                                                 }}>
@@ -299,7 +299,7 @@ export default function SprintBoard() {
                                                         labelIds: active ? f.labelIds.filter((x) => x !== l.id) : [...f.labelIds, l.id],
                                                     }))}
                                                     style={{
-                                                        padding: "3px 10px", borderRadius: "12px", fontSize: "0.75rem", fontWeight: 600,
+                                                        padding: "3px 10px", borderRadius: "0px", fontSize: "0.75rem", fontWeight: 600,
                                                         background: active ? `${l.color}33` : "var(--surface2)",
                                                         color: active ? l.color : "var(--text-muted)",
                                                         border: active ? `1px solid ${l.color}88` : "1px solid var(--border)",
@@ -371,7 +371,7 @@ export default function SprintBoard() {
                                         <label style={{ fontSize: "0.78rem", color: "var(--text-muted)", display: "block", marginBottom: "8px" }}>Labels</label>
                                         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                                             {taskDetail.labels.map(({ label }) => (
-                                                <span key={label.id} style={{ padding: "3px 10px", borderRadius: "12px", fontSize: "0.75rem", fontWeight: 600, background: `${label.color}22`, color: label.color }}>
+                                                <span key={label.id} style={{ padding: "3px 10px", borderRadius: "0px", fontSize: "0.75rem", fontWeight: 600, background: `${label.color}22`, color: label.color }}>
                                                     {label.name}
                                                 </span>
                                             ))}
