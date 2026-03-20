@@ -219,9 +219,8 @@ export default function TasksBrowser() {
 
             {/* Technique callout */}
             <div style={{
-                marginTop: "28px", padding: "16px 20px", borderRadius: "var(--radius)",
+                marginTop: "28px", padding: "16px 20px", borderRadius: "0px",
                 background: "var(--surface)", border: "4px solid var(--border)",
-                border: "1px solid rgba(124,111,247,0.18)",
                 fontSize: "0.8rem", color: "var(--text-muted)", lineHeight: 1.7,
             }}>
                 <span style={{ fontWeight: 600, color: "var(--accent)", marginRight: "6px" }}>⚡ Phase 3 patterns shown:</span>

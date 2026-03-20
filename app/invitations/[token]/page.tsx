@@ -158,8 +158,6 @@ export default function InvitationPage() {
 
                 <div style={{
                     background: "var(--surface)", border: "4px solid var(--border)",
-                    border: "1px solid rgba(124,111,247,0.25)",
-                    borderRadius: "var(--radius)",
                     padding: "24px",
                     marginBottom: "32px",
                 }}>

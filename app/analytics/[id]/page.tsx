@@ -478,7 +478,6 @@ export default function AnalyticsPage() {
             <div style={{
                 marginTop: "28px", padding: "18px 22px", borderRadius: "var(--radius)",
                 background: "var(--surface)", border: "4px solid var(--border)",
-                border: "1px solid rgba(124,111,247,0.2)",
                 fontSize: "0.8rem", color: "var(--text-muted)", lineHeight: 1.7,
             }}>
                 <span style={{ fontWeight: 600, color: "var(--accent)", marginRight: "6px" }}>⚡ Phase 2 ORM techniques used:</span>

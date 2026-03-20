@@ -26,9 +26,8 @@ export default function GlobalError({
             <div style={{ textAlign: "center", maxWidth: "480px" }}>
                 {/* Icon */}
                 <div style={{
-                    width: "80px", height: "80px", borderRadius: "20px",
+                    width: "80px", height: "80px", borderRadius: "0px",
                     background: "var(--surface)", border: "4px solid var(--border)",
-                    border: "1px solid rgba(248,113,113,0.2)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     margin: "0 auto 24px",
                 }}>
