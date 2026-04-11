@@ -38,8 +38,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const baseKey = String(name).replace(/[^A-Za-z0-9]/g, "").slice(0, 4).toUpperCase() || "PRJ";
+    const projectCount = await prisma.project.count({ where: { organizationId: Number(organizationId) } });
+
     const project = await prisma.project.create({
-        data: { name, description, organizationId: Number(organizationId) },
+        data: { name, key: `${baseKey}${projectCount + 1}`, description, organizationId: Number(organizationId) },
     });
     return NextResponse.json(project, { status: 201 });
 }

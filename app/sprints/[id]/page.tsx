@@ -11,10 +11,12 @@ type Comment = { id: number; content: string; createdAt: string; user: User };
 type TaskLabel = { label: Label };
 
 type Task = {
-    id: number; title: string; description?: string;
+    id: number; key?: string | null; issueType: "EPIC" | "STORY" | "TASK" | "BUG" | "SUBTASK"; title: string; description?: string;
     status: "TODO" | "IN_PROGRESS" | "REVIEW" | "DONE";
     priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
     assignee?: User; creator: User;
+    storyPoints?: number | null;
+    parent?: { id: number; key?: string | null; title: string; issueType: string } | null;
     labels: TaskLabel[];
     dueDate?: string;
     _count: { comments: number };
@@ -34,6 +36,7 @@ const COLUMNS: { status: Task["status"]; label: string; cls: string; dot: string
 ];
 
 const PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"] as const;
+const ISSUE_TYPES = ["STORY", "TASK", "BUG", "EPIC", "SUBTASK"] as const;
 const PRIORITY_COLORS: Record<string, string> = {
     LOW: "var(--low-fg)", MEDIUM: "var(--med-fg)", HIGH: "var(--high-fg)", URGENT: "var(--urgent-fg)",
 };
@@ -47,13 +50,13 @@ export default function SprintBoard() {
     const [labels, setLabels] = useState<Label[]>([]);
     const [showCreate, setShowCreate] = useState<Task["status"] | null>(null);
     const [selectedTask, setSelectedTask] = useState<number | null>(null);
-    const [taskDetail, setTaskDetail] = useState<Task & { comments: Comment[] } | null>(null);
+    const [taskDetail, setTaskDetail] = useState<Task & { comments: Comment[]; activities?: { id: number; actorName: string; type: string; field?: string | null; fromValue?: string | null; toValue?: string | null; createdAt: string }[] } | null>(null);
     const [newComment, setNewComment] = useState("");
     const [commentUserId, setCommentUserId] = useState<number | "">("");
     const [savingComment, setSavingComment] = useState(false);
 
     const [createForm, setCreateForm] = useState({
-        title: "", description: "", priority: "MEDIUM" as Task["priority"],
+        title: "", description: "", issueType: "TASK" as Task["issueType"], priority: "MEDIUM" as Task["priority"], storyPoints: "",
         assigneeId: "" as number | "", labelIds: [] as number[], dueDate: "",
     });
     const [creating, setCreating] = useState(false);
@@ -83,7 +86,7 @@ export default function SprintBoard() {
     }, [selectedTask]);
 
     const openCreate = (status: Task["status"]) => {
-        setCreateForm({ title: "", description: "", priority: "MEDIUM", assigneeId: "", labelIds: [], dueDate: "" });
+        setCreateForm({ title: "", description: "", issueType: "TASK", priority: "MEDIUM", storyPoints: "", assigneeId: "", labelIds: [], dueDate: "" });
         setShowCreate(status);
     };
 
@@ -98,9 +101,10 @@ export default function SprintBoard() {
                 title: createForm.title,
                 description: createForm.description || undefined,
                 sprintId: sprint.id,
-                creatorId: members[0].id,
                 assigneeId: createForm.assigneeId || undefined,
+                issueType: createForm.issueType,
                 priority: createForm.priority,
+                storyPoints: createForm.storyPoints ? Number(createForm.storyPoints) : undefined,
                 status: showCreate,
                 labelIds: createForm.labelIds,
                 dueDate: createForm.dueDate || undefined,
@@ -118,6 +122,15 @@ export default function SprintBoard() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ status }),
         });
+    };
+
+    const onDropTask = (status: Task["status"], event: React.DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        const taskId = Number(event.dataTransfer.getData("text/task-id"));
+        if (!taskId) return;
+        const task = sprint?.tasks.find((item) => item.id === taskId);
+        if (!task || task.status === status) return;
+        moveTask(taskId, status);
     };
 
     const deleteTask = async (taskId: number) => {
@@ -176,7 +189,12 @@ export default function SprintBoard() {
                 {col.map(({ status, label, cls, dot }) => {
                     const tasks = tasksByStatus(status);
                     return (
-                        <div key={status} className="kanban-col">
+                        <div
+                            key={status}
+                            className="kanban-col"
+                            onDragOver={(event) => event.preventDefault()}
+                            onDrop={(event) => onDropTask(status, event)}
+                        >
                             {/* Column header */}
                             <div className="kanban-header" style={{ background: "var(--surface2)" }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -199,10 +217,22 @@ export default function SprintBoard() {
                                     key={task.id}
                                     className="kanban-card anim-in"
                                     onClick={() => setSelectedTask(task.id)}
+                                    draggable
+                                    onDragStart={(event) => event.dataTransfer.setData("text/task-id", String(task.id))}
                                 >
                                     {/* Priority stripe */}
                                     <div style={{ width: "3px", height: "12px", borderRadius: "2px", background: PRIORITY_COLORS[task.priority], marginBottom: "8px" }} />
+                                    <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "6px" }}>
+                                        <span style={{ color: "var(--accent)", fontSize: "0.72rem", fontWeight: 800 }}>{task.key ?? `#${task.id}`}</span>
+                                        <span style={{ color: "var(--text-muted)", fontSize: "0.7rem" }}>{task.issueType}</span>
+                                        {task.storyPoints != null && <span style={{ color: "var(--text-muted)", fontSize: "0.7rem" }}>{task.storyPoints} pts</span>}
+                                    </div>
                                     <div style={{ fontWeight: 500, fontSize: "0.9rem", marginBottom: "8px", lineHeight: 1.4 }}>{task.title}</div>
+                                    {task.parent && (
+                                        <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginBottom: "8px" }}>
+                                            Epic: {task.parent.key ?? `#${task.parent.id}`} {task.parent.title}
+                                        </div>
+                                    )}
 
                                     {/* Labels */}
                                     {task.labels.length > 0 && (
@@ -268,10 +298,22 @@ export default function SprintBoard() {
                             </div>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                                 <div>
+                                    <label style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block", marginBottom: "6px" }}>Issue Type</label>
+                                    <select className="input-field" value={createForm.issueType} onChange={(e) => setCreateForm((f) => ({ ...f, issueType: e.target.value as Task["issueType"] }))}>
+                                        {ISSUE_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+                                    </select>
+                                </div>
+                                <div>
                                     <label style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block", marginBottom: "6px" }}>Priority</label>
                                     <select className="input-field" value={createForm.priority} onChange={(e) => setCreateForm((f) => ({ ...f, priority: e.target.value as Task["priority"] }))}>
                                         {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
                                     </select>
+                                </div>
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                                <div>
+                                    <label style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block", marginBottom: "6px" }}>Story Points</label>
+                                    <input type="number" min="0" className="input-field" value={createForm.storyPoints} onChange={(e) => setCreateForm((f) => ({ ...f, storyPoints: e.target.value }))} placeholder="0" />
                                 </div>
                                 <div>
                                     <label style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block", marginBottom: "6px" }}>Assignee</label>
@@ -330,6 +372,8 @@ export default function SprintBoard() {
                         <div style={{ padding: "24px 28px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "flex-start", gap: "14px" }}>
                             <div style={{ flex: 1 }}>
                                 <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "10px", alignItems: "center" }}>
+                                    <span style={{ fontSize: "0.78rem", color: "var(--accent)", fontWeight: 800 }}>{taskDetail.key ?? `#${taskDetail.id}`}</span>
+                                    <span className="badge badge-todo">{taskDetail.issueType}</span>
                                     <span className={`badge badge-${taskDetail.status === "IN_PROGRESS" ? "inprog" : taskDetail.status.toLowerCase()}`}>
                                         {taskDetail.status.replace("_", " ")}
                                     </span>
@@ -412,6 +456,7 @@ export default function SprintBoard() {
                                 {[
                                     { label: "Creator", value: taskDetail.creator.name },
                                     { label: "Assignee", value: taskDetail.assignee?.name ?? "Unassigned" },
+                                    { label: "Story Points", value: taskDetail.storyPoints ?? "Not estimated" },
                                     { label: "Due Date", value: taskDetail.dueDate ? new Date(taskDetail.dueDate).toLocaleDateString() : "—" },
                                 ].map(({ label, value }) => (
                                     <div key={label}>
@@ -419,6 +464,22 @@ export default function SprintBoard() {
                                         <div style={{ fontSize: "0.875rem", fontWeight: 500 }}>{value}</div>
                                     </div>
                                 ))}
+
+                                <hr />
+
+                                <div>
+                                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.04em" }}>Activity</div>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "180px", overflow: "auto" }}>
+                                        {(taskDetail.activities ?? []).length === 0 ? (
+                                            <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>No activity yet</div>
+                                        ) : taskDetail.activities?.map((activity) => (
+                                            <div key={activity.id} style={{ fontSize: "0.76rem", color: "var(--text-muted)", lineHeight: 1.4 }}>
+                                                <strong style={{ color: "var(--text)" }}>{activity.actorName}</strong> {activity.type.replace("_", " ").toLowerCase()}
+                                                {activity.field ? ` ${activity.field}` : ""}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
 
                                 <hr />
 

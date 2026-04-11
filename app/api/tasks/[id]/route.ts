@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateDbUser, getUserOrgIds } from "@/lib/auth";
+import { logTaskActivity } from "@/lib/activity";
 import { sendEmail, taskStatusChangedEmail, taskAssignedEmail } from "@/lib/email";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -9,10 +10,10 @@ async function verifyTaskAccess(taskId: number, orgIds: number[]) {
     const task = await prisma.task.findUnique({
         where: { id: taskId, deletedAt: null },
         include: {
-            sprint: { select: { project: { select: { organizationId: true } } } },
+            project: { select: { organizationId: true } },
         },
     });
-    if (!task || !orgIds.includes(task.sprint.project.organizationId)) return null;
+    if (!task || !orgIds.includes(task.project.organizationId)) return null;
     return task;
 }
 
@@ -32,11 +33,14 @@ export async function GET(
         include: {
             creator: { select: { id: true, name: true } },
             assignee: { select: { id: true, name: true } },
+            project: { select: { id: true, name: true, key: true } },
             labels: { include: { label: true } },
             comments: {
                 include: { user: { select: { id: true, name: true } } },
                 orderBy: { createdAt: "asc" },
             },
+            activities: { orderBy: { createdAt: "desc" }, take: 20 },
+            parent: { select: { id: true, key: true, title: true, issueType: true } },
             sprint: { select: { id: true, name: true, projectId: true } },
         },
     });
@@ -64,14 +68,17 @@ export async function PATCH(
         ...(updates.description !== undefined && { description: updates.description }),
         ...(updates.status !== undefined && { status: updates.status }),
         ...(updates.priority !== undefined && { priority: updates.priority }),
+        ...(updates.issueType !== undefined && { issueType: updates.issueType }),
+        ...(updates.storyPoints !== undefined && { storyPoints: updates.storyPoints === "" ? null : Number(updates.storyPoints) }),
+        ...(updates.parentId !== undefined && { parentId: updates.parentId ? Number(updates.parentId) : null }),
         ...(updates.assigneeId !== undefined && { assigneeId: updates.assigneeId ? Number(updates.assigneeId) : null }),
-        ...(updates.sprintId !== undefined && { sprintId: Number(updates.sprintId) }),
+        ...(updates.sprintId !== undefined && { sprintId: updates.sprintId ? Number(updates.sprintId) : null }),
         ...(updates.dueDate !== undefined && { dueDate: updates.dueDate ? new Date(updates.dueDate) : null }),
     };
 
     // Verify assignee is a member of the task's organization
     if (updates.assigneeId) {
-        const orgId = access.sprint.project.organizationId;
+        const orgId = access.project.organizationId;
         const assigneeMembership = await prisma.userOrganization.findUnique({
             where: {
                 userId_organizationId: {
@@ -91,7 +98,17 @@ export async function PATCH(
     // Track old values for notifications
     const oldTask = await prisma.task.findUnique({
         where: { id: taskId },
-        include: {
+        select: {
+            title: true,
+            description: true,
+            status: true,
+            priority: true,
+            issueType: true,
+            storyPoints: true,
+            assigneeId: true,
+            sprintId: true,
+            dueDate: true,
+            parentId: true,
             creator: { select: { email: true } },
             assignee: { select: { email: true } },
         },
@@ -126,11 +143,14 @@ export async function PATCH(
             include: {
                 creator: { select: { id: true, name: true } },
                 assignee: { select: { id: true, name: true } },
+                project: { select: { id: true, name: true, key: true } },
+                sprint: { select: { id: true, name: true } },
                 labels: { include: { label: true } },
                 _count: { select: { comments: true } },
             },
         });
 
+        await logFieldActivities(taskId, user, oldTask, updates);
         // Send notifications
         await sendTaskNotifications(oldTask, updates, user.name, task?.title ?? "");
 
@@ -141,13 +161,16 @@ export async function PATCH(
         where: { id: taskId },
         data,
         include: {
-            creator: { select: { id: true, name: true } },
-            assignee: { select: { id: true, name: true } },
-            labels: { include: { label: true } },
-            _count: { select: { comments: true } },
-        },
-    });
+        creator: { select: { id: true, name: true } },
+        assignee: { select: { id: true, name: true } },
+        project: { select: { id: true, name: true, key: true } },
+        sprint: { select: { id: true, name: true } },
+        labels: { include: { label: true } },
+        _count: { select: { comments: true } },
+    },
+});
 
+    await logFieldActivities(taskId, user, oldTask, updates);
     // Send notifications
     await sendTaskNotifications(oldTask, updates, user.name, task.title);
 
@@ -170,7 +193,38 @@ export async function DELETE(
         where: { id: Number(id) },
         data: { deletedAt: new Date() },
     });
+    await logTaskActivity({ taskId: Number(id), actor: user, type: "DELETED" });
     return NextResponse.json({ success: true });
+}
+
+async function logFieldActivities(
+    taskId: number,
+    actor: { id: number; name: string },
+    oldTask: Record<string, unknown> | null,
+    updates: Record<string, unknown>,
+) {
+    if (!oldTask) return;
+
+    const activityFor = (field: string) => {
+        if (updates[field] === undefined || updates[field] === oldTask[field]) return null;
+        if (field === "status") return "STATUS_CHANGED" as const;
+        if (field === "assigneeId") return "ASSIGNEE_CHANGED" as const;
+        if (field === "sprintId") return "SPRINT_CHANGED" as const;
+        return "UPDATED" as const;
+    };
+
+    for (const field of ["title", "description", "status", "priority", "issueType", "storyPoints", "assigneeId", "sprintId", "dueDate", "parentId"]) {
+        const type = activityFor(field);
+        if (!type) continue;
+        await logTaskActivity({
+            taskId,
+            actor,
+            type,
+            field,
+            fromValue: oldTask[field],
+            toValue: updates[field],
+        });
+    }
 }
 
 // ── Notification helper ──────────────────────────────────

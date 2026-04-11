@@ -21,10 +21,11 @@ export async function GET(
                 include: {
                     creator: { select: { id: true, name: true } },
                     assignee: { select: { id: true, name: true } },
+                    parent: { select: { id: true, key: true, title: true, issueType: true } },
                     labels: { include: { label: true } },
                     _count: { select: { comments: true } },
                 },
-                orderBy: { createdAt: "asc" },
+                orderBy: [{ rank: "asc" }, { createdAt: "asc" }],
             },
         },
     });

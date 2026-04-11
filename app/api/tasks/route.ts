@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateDbUser, getUserOrgIds } from "@/lib/auth";
+import { logTaskActivity, nextIssueKey } from "@/lib/activity";
 import { sendEmail, taskAssignedEmail } from "@/lib/email";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -11,6 +12,8 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const sprintId = searchParams.get("sprintId");
+    const projectId = searchParams.get("projectId");
+    const backlog = searchParams.get("backlog") === "true";
     const assigneeId = searchParams.get("assigneeId");
     const cursorId = searchParams.get("cursor");
     const limitParam = searchParams.get("limit");
@@ -19,14 +22,18 @@ export async function GET(req: NextRequest) {
 
     const where = {
         deletedAt: null,
+        ...(projectId && { projectId: Number(projectId) }),
         ...(sprintId && { sprintId: Number(sprintId) }),
+        ...(backlog && { sprintId: null }),
         ...(assigneeId && { assigneeId: Number(assigneeId) }),
-        sprint: { project: { organizationId: { in: orgIds } } },
+        project: { organizationId: { in: orgIds } },
     };
 
     const include = {
         creator: { select: { id: true, name: true } },
         assignee: { select: { id: true, name: true } },
+        project: { select: { id: true, name: true, key: true } },
+        sprint: { select: { id: true, name: true } },
         labels: { include: { label: true } },
         _count: { select: { comments: true } },
     };
@@ -35,7 +42,7 @@ export async function GET(req: NextRequest) {
         const tasks = await prisma.task.findMany({
             where,
             include,
-            orderBy: { createdAt: "asc" },
+            orderBy: [{ rank: "asc" }, { createdAt: "asc" }],
         });
         return NextResponse.json(tasks);
     }
@@ -48,7 +55,7 @@ export async function GET(req: NextRequest) {
         }),
         where,
         include,
-        orderBy: { createdAt: "asc" },
+        orderBy: { id: "asc" },
     });
 
     const hasMore = tasks.length > limit;
@@ -62,19 +69,24 @@ export async function POST(req: NextRequest) {
     const user = await getOrCreateDbUser();
     const orgIds = await getUserOrgIds(user.id);
 
-    const { title, description, sprintId, assigneeId, priority, dueDate, labelIds, status } =
+    const { title, description, sprintId, projectId, assigneeId, priority, dueDate, labelIds, status, issueType, storyPoints, parentId } =
         await req.json();
 
-    if (!title || !sprintId) {
-        return NextResponse.json({ error: "title and sprintId required" }, { status: 400 });
+    if (!title || (!sprintId && !projectId)) {
+        return NextResponse.json({ error: "title and sprintId or projectId required" }, { status: 400 });
     }
 
-    // Verify sprint belongs to user's org
-    const sprint = await prisma.sprint.findUnique({
-        where: { id: Number(sprintId) },
-        select: { project: { select: { organizationId: true } } },
-    });
-    if (!sprint || !orgIds.includes(sprint.project.organizationId)) {
+    const projectContext = sprintId
+        ? await prisma.sprint.findUnique({
+            where: { id: Number(sprintId) },
+            select: { projectId: true, project: { select: { organizationId: true } } },
+        })
+        : await prisma.project.findUnique({
+            where: { id: Number(projectId) },
+            select: { id: true, organizationId: true },
+        }).then((project) => project ? { projectId: project.id, project: { organizationId: project.organizationId } } : null);
+
+    if (!projectContext || !orgIds.includes(projectContext.project.organizationId)) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -84,7 +96,7 @@ export async function POST(req: NextRequest) {
             where: {
                 userId_organizationId: {
                     userId: Number(assigneeId),
-                    organizationId: sprint.project.organizationId,
+                    organizationId: projectContext.project.organizationId,
                 },
             },
         });
@@ -101,9 +113,14 @@ export async function POST(req: NextRequest) {
             data: {
                 title,
                 description,
-                sprintId: Number(sprintId),
+                key: await nextIssueKey(projectContext.projectId),
+                projectId: projectContext.projectId,
+                ...(sprintId && { sprintId: Number(sprintId) }),
                 creatorId: user.id,   // use authenticated user
                 ...(status && { status }),
+                ...(issueType && { issueType }),
+                ...(storyPoints !== undefined && storyPoints !== "" && { storyPoints: Number(storyPoints) }),
+                ...(parentId && { parentId: Number(parentId) }),
                 ...(assigneeId && { assigneeId: Number(assigneeId) }),
                 ...(priority && { priority }),
                 ...(dueDate && { dueDate: new Date(dueDate) }),
@@ -122,10 +139,21 @@ export async function POST(req: NextRequest) {
         include: {
             creator: { select: { id: true, name: true } },
             assignee: { select: { id: true, name: true, email: true } },
+            project: { select: { id: true, name: true, key: true } },
+            sprint: { select: { id: true, name: true } },
             labels: { include: { label: true } },
             _count: { select: { comments: true } },
         },
     });
+
+    if (full) {
+        await logTaskActivity({
+            taskId: full.id,
+            actor: user,
+            type: "CREATED",
+            toValue: full.key ?? full.title,
+        });
+    }
 
     // Send email notification to assignee
     if (assigneeId && full?.assignee?.email) {

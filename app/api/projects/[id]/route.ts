@@ -21,6 +21,11 @@ export async function GET(
                 orderBy: { createdAt: "desc" },
             },
             labels: true,
+            _count: {
+                select: {
+                    tasks: { where: { sprintId: null, deletedAt: null } },
+                },
+            },
         },
     });
     if (!project || !orgIds.includes(project.organizationId)) {
@@ -50,6 +55,7 @@ export async function PATCH(
         where: { id: Number(id) },
         data: {
             ...(body.name && { name: body.name }),
+            ...(body.key && { key: String(body.key).toUpperCase() }),
             ...(body.description !== undefined && { description: body.description }),
         },
     });

@@ -53,6 +53,12 @@ export async function GET(req: NextRequest) {
         LEFT JOIN "Task" t
             ON t."assigneeId" = u.id
             AND t."deletedAt" IS NULL
+            AND EXISTS (
+                SELECT 1
+                FROM "Project" p
+                WHERE p.id = t."projectId"
+                  AND p."organizationId" = ${Number(orgId)}
+            )
         GROUP BY u.id, u.name
         ORDER BY total DESC, u.name ASC
         `

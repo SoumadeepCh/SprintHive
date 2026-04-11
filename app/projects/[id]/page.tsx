@@ -11,10 +11,11 @@ type Sprint = {
     _count: { tasks: number };
 };
 type Project = {
-    id: number; name: string; description?: string;
+    id: number; key?: string | null; name: string; description?: string;
     organization: { id: number; name: string };
     sprints: Sprint[];
     labels: { id: number; name: string; color: string }[];
+    _count?: { tasks: number };
 };
 
 export default function ProjectPage() {
@@ -102,6 +103,9 @@ export default function ProjectPage() {
                 <div style={{ display: "flex", gap: "10px" }}>
                     <Link href={`/analytics/${id}`}>
                         <button className="btn-ghost" style={{ display: "flex", alignItems: "center", gap: "5px" }}>📊 Analytics</button>
+                    </Link>
+                    <Link href={`/projects/${id}/backlog`}>
+                        <button className="btn-ghost" style={{ display: "flex", alignItems: "center", gap: "5px" }}>Backlog {project._count?.tasks ? `(${project._count.tasks})` : ""}</button>
                     </Link>
                     <Link href={`/projects/${id}/timeline`}>
                         <button className="btn-ghost" style={{ display: "flex", alignItems: "center", gap: "5px" }}>📅 Timeline</button>

@@ -27,16 +27,20 @@ export async function GET(req: NextRequest) {
     const [tasks, projects, sprints] = await Promise.all([
         // ── Tasks: FTS on title + description, scoped to user's orgs ──
         prisma.$queryRawUnsafe<{
-            id: number; title: string; description: string | null;
-            status: string; priority: string; sprint_id: number; sprint_name: string;
+            id: number; key: string | null; title: string; description: string | null;
+            status: string; priority: string; issue_type: string; project_id: number; project_name: string; sprint_id: number | null; sprint_name: string | null;
             rank: number;
         }[]>(`
             SELECT
                 t.id,
+                t.key,
                 t.title,
                 t.description,
                 t.status::text,
                 t.priority::text,
+                t."issueType"::text AS issue_type,
+                p.id            AS project_id,
+                p.name          AS project_name,
                 t."sprintId"   AS sprint_id,
                 s.name         AS sprint_name,
                 ts_rank(
@@ -44,8 +48,8 @@ export async function GET(req: NextRequest) {
                     plainto_tsquery('english', $1)
                 )              AS rank
             FROM   "Task"   t
-            JOIN   "Sprint" s ON s.id = t."sprintId"
-            JOIN   "Project" p ON p.id = s."projectId"
+            JOIN   "Project" p ON p.id = t."projectId"
+            LEFT   JOIN "Sprint" s ON s.id = t."sprintId"
             WHERE  t."deletedAt" IS NULL
               AND  p."organizationId" IN (${orgIdList})
               AND (

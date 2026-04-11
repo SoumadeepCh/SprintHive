@@ -123,6 +123,15 @@ sprinthive/
 
 ---
 
+## Project Docs
+
+Additional project-facing documentation lives in `docs/`:
+
+* `docs/INTERVIEW_GUIDE.md` - how to explain the architecture, flows, and technical decisions in interviews
+* `docs/FIGMA_HANDOFF.md` - design-system and screen handoff notes for building a matching Figma file
+
+---
+
 ## Getting Started
 
 ### Prerequisites

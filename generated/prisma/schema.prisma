@@ -26,9 +26,27 @@ enum TaskPriority {
   URGENT
 }
 
+enum IssueType {
+  EPIC
+  STORY
+  TASK
+  BUG
+  SUBTASK
+}
+
 enum OrgRole {
   OWNER
   MEMBER
+}
+
+enum TaskActivityType {
+  CREATED
+  UPDATED
+  STATUS_CHANGED
+  ASSIGNEE_CHANGED
+  SPRINT_CHANGED
+  COMMENTED
+  DELETED
 }
 
 enum InvitationStatus {
@@ -95,13 +113,16 @@ model OrgInvitation {
 model Project {
   id             Int          @id @default(autoincrement())
   name           String
+  key            String?
   description    String?
   organizationId Int
   organization   Organization @relation(fields: [organizationId], references: [id])
   sprints        Sprint[]
   labels         Label[]
+  tasks          Task[]
   createdAt      DateTime     @default(now())
 
+  @@unique([organizationId, key])
   @@index([organizationId])
 }
 
@@ -120,25 +141,38 @@ model Sprint {
 }
 
 model Task {
-  id          Int          @id @default(autoincrement())
+  id          Int            @id @default(autoincrement())
+  key         String?
+  issueType   IssueType      @default(TASK)
   title       String
   description String?
-  status      TaskStatus   @default(TODO)
-  priority    TaskPriority @default(MEDIUM)
-  sprintId    Int
-  sprint      Sprint       @relation(fields: [sprintId], references: [id])
+  status      TaskStatus     @default(TODO)
+  priority    TaskPriority   @default(MEDIUM)
+  projectId   Int
+  project     Project        @relation(fields: [projectId], references: [id])
+  sprintId    Int?
+  sprint      Sprint?        @relation(fields: [sprintId], references: [id])
+  parentId    Int?
+  parent      Task?          @relation("IssueHierarchy", fields: [parentId], references: [id])
+  children    Task[]         @relation("IssueHierarchy")
   creatorId   Int
-  creator     User         @relation("TaskCreator", fields: [creatorId], references: [id])
+  creator     User           @relation("TaskCreator", fields: [creatorId], references: [id])
   assigneeId  Int?
-  assignee    User?        @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  assignee    User?          @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  storyPoints Int?
+  rank        Int            @default(0)
+  reporterId  Int?
   dueDate     DateTime?
   comments    Comment[]
   labels      TaskLabel[]
+  activities  TaskActivity[]
   deletedAt   DateTime?
-  version     Int          @default(1) // optimistic concurrency token
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  version     Int            @default(1) // optimistic concurrency token
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
+  @@unique([projectId, key])
+  @@index([projectId, sprintId, rank])
   @@index([sprintId, status])
   @@index([assigneeId, status])
   // Covering index for cursor-pagination: WHERE sprintId=? AND deletedAt IS NULL ORDER BY createdAt
@@ -171,4 +205,19 @@ model TaskLabel {
   label   Label @relation(fields: [labelId], references: [id])
 
   @@id([taskId, labelId])
+}
+
+model TaskActivity {
+  id        Int              @id @default(autoincrement())
+  taskId    Int
+  task      Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  actorId   Int?
+  actorName String
+  type      TaskActivityType
+  field     String?
+  fromValue String?
+  toValue   String?
+  createdAt DateTime         @default(now())
+
+  @@index([taskId, createdAt])
 }

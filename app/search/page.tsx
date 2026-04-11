@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 type TaskResult = {
-    id: number; title: string; description: string | null;
-    status: string; priority: string; sprint_id: number; sprint_name: string; rank: number;
+    id: number; key: string | null; title: string; description: string | null;
+    status: string; priority: string; issue_type: string; project_id: number; project_name: string; sprint_id: number | null; sprint_name: string | null; rank: number;
 };
 type ProjectResult = { id: number; name: string; description: string | null; sprint_count: number };
 type SprintResult = { id: number; name: string; project_id: number; project_name: string; is_active: boolean; task_count: number };
@@ -166,12 +166,13 @@ export default function SearchPage() {
                             <SectionHeader icon="📋" label="Tasks" count={results.tasks.length} />
                             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                                 {results.tasks.map(t => (
-                                    <Link key={t.id} href={`/sprints/${t.sprint_id}`} style={{ display: "block" }}>
+                                    <Link key={t.id} href={t.sprint_id ? `/sprints/${t.sprint_id}` : `/projects/${t.project_id}/backlog`} style={{ display: "block" }}>
                                         <div className="glass kanban-card" style={{ padding: "14px 18px", cursor: "pointer" }}>
                                             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                                                 <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: PRIORITY_COLOR[t.priority], flexShrink: 0 }} />
                                                 <div style={{ flex: 1 }}>
                                                     <div style={{ fontWeight: 500, fontSize: "0.9rem" }}>
+                                                        <span style={{ color: "var(--accent)", marginRight: "8px", fontWeight: 700 }}>{t.key ?? `#${t.id}`}</span>
                                                         <Highlight text={t.title} q={query} />
                                                     </div>
                                                     {t.description && (
@@ -184,7 +185,7 @@ export default function SearchPage() {
                                                     {t.status.replace("_", " ")}
                                                 </span>
                                                 <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", flexShrink: 0 }}>
-                                                    {t.sprint_name}
+                                                    {t.sprint_name ?? "Backlog"}
                                                 </span>
                                             </div>
                                         </div>

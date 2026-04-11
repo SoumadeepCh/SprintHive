@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
         where: {
             assigneeId: user.id,
             deletedAt: null,
-            sprint: { project: { organizationId: { in: orgIds } } },
+            project: { organizationId: { in: orgIds } },
             ...(statusFilter && { status: statusFilter as "TODO" | "IN_PROGRESS" | "REVIEW" | "DONE" }),
         },
         include: {
@@ -27,9 +27,9 @@ export async function GET(req: NextRequest) {
                 select: {
                     id: true,
                     name: true,
-                    project: { select: { id: true, name: true } },
                 },
             },
+            project: { select: { id: true, name: true, key: true } },
             _count: { select: { comments: true } },
         },
         orderBy: [{ priority: "desc" }, { createdAt: "desc" }],

@@ -59,9 +59,9 @@ export async function GET(req: NextRequest) {
                     WHERE t.priority IN ('HIGH','URGENT')
                     AND   t.status  != 'DONE'
                 )                                                    AS high_priority_open
-            FROM "Sprint" s
-            JOIN "Task" t ON t."sprintId" = s.id AND t."deletedAt" IS NULL
-            WHERE s."projectId" = ${Number(projectId)}
+            FROM "Task" t
+            WHERE t."projectId" = ${Number(projectId)}
+              AND t."deletedAt" IS NULL
         )
         SELECT
             ts.total_tasks,

@@ -158,6 +158,7 @@ exports.Prisma.OrgInvitationScalarFieldEnum = {
 exports.Prisma.ProjectScalarFieldEnum = {
   id: 'id',
   name: 'name',
+  key: 'key',
   description: 'description',
   organizationId: 'organizationId',
   createdAt: 'createdAt'
@@ -175,13 +176,20 @@ exports.Prisma.SprintScalarFieldEnum = {
 
 exports.Prisma.TaskScalarFieldEnum = {
   id: 'id',
+  key: 'key',
+  issueType: 'issueType',
   title: 'title',
   description: 'description',
   status: 'status',
   priority: 'priority',
+  projectId: 'projectId',
   sprintId: 'sprintId',
+  parentId: 'parentId',
   creatorId: 'creatorId',
   assigneeId: 'assigneeId',
+  storyPoints: 'storyPoints',
+  rank: 'rank',
+  reporterId: 'reporterId',
   dueDate: 'dueDate',
   deletedAt: 'deletedAt',
   version: 'version',
@@ -209,6 +217,18 @@ exports.Prisma.TaskLabelScalarFieldEnum = {
   labelId: 'labelId'
 };
 
+exports.Prisma.TaskActivityScalarFieldEnum = {
+  id: 'id',
+  taskId: 'taskId',
+  actorId: 'actorId',
+  actorName: 'actorName',
+  type: 'type',
+  field: 'field',
+  fromValue: 'fromValue',
+  toValue: 'toValue',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -234,6 +254,14 @@ exports.InvitationStatus = exports.$Enums.InvitationStatus = {
   DECLINED: 'DECLINED'
 };
 
+exports.IssueType = exports.$Enums.IssueType = {
+  EPIC: 'EPIC',
+  STORY: 'STORY',
+  TASK: 'TASK',
+  BUG: 'BUG',
+  SUBTASK: 'SUBTASK'
+};
+
 exports.TaskStatus = exports.$Enums.TaskStatus = {
   TODO: 'TODO',
   IN_PROGRESS: 'IN_PROGRESS',
@@ -248,6 +276,16 @@ exports.TaskPriority = exports.$Enums.TaskPriority = {
   URGENT: 'URGENT'
 };
 
+exports.TaskActivityType = exports.$Enums.TaskActivityType = {
+  CREATED: 'CREATED',
+  UPDATED: 'UPDATED',
+  STATUS_CHANGED: 'STATUS_CHANGED',
+  ASSIGNEE_CHANGED: 'ASSIGNEE_CHANGED',
+  SPRINT_CHANGED: 'SPRINT_CHANGED',
+  COMMENTED: 'COMMENTED',
+  DELETED: 'DELETED'
+};
+
 exports.Prisma.ModelName = {
   Organization: 'Organization',
   User: 'User',
@@ -258,7 +296,8 @@ exports.Prisma.ModelName = {
   Task: 'Task',
   Comment: 'Comment',
   Label: 'Label',
-  TaskLabel: 'TaskLabel'
+  TaskLabel: 'TaskLabel',
+  TaskActivity: 'TaskActivity'
 };
 
 /**

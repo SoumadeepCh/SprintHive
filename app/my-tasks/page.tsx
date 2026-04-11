@@ -10,12 +10,13 @@ import {
 type User = { id: number; name: string };
 type Label = { id: number; name: string; color: string };
 type Task = {
-    id: number; title: string; description?: string;
+    id: number; key?: string | null; issueType?: string; title: string; description?: string;
     status: string; priority: string;
     assignee?: User; creator: User;
     labels: { label: Label }[];
     dueDate?: string;
-    sprint: { id: number; name: string; project: { id: number; name: string } };
+    sprint?: { id: number; name: string } | null;
+    project: { id: number; name: string; key?: string | null };
     _count: { comments: number };
 };
 
@@ -165,7 +166,7 @@ export default function MyTasksPage() {
                                                 </div>
                                                 <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
                                                     <Link
-                                                        href={`/sprints/${task.sprint.id}`}
+                                                        href={task.sprint ? `/sprints/${task.sprint.id}` : `/projects/${task.project.id}/backlog`}
                                                         style={{
                                                             fontSize: "0.75rem", color: "var(--accent)",
                                                             background: "rgba(124,111,247,0.08)",
@@ -175,8 +176,11 @@ export default function MyTasksPage() {
                                                         onClick={(e) => e.stopPropagation()}
                                                     >
                                                         <ChevronRight size={10} />
-                                                        {task.sprint.project.name} › {task.sprint.name}
+                                                        {task.key ?? `#${task.id}`} - {task.project.name} &gt; {task.sprint?.name ?? "Backlog"}
                                                     </Link>
+                                                    {task.issueType && (
+                                                        <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>{task.issueType}</span>
+                                                    )}
                                                     {task.labels.map(({ label }) => (
                                                         <span key={label.id} style={{
                                                             padding: "1px 7px", borderRadius: "12px",

@@ -15,9 +15,9 @@ export async function PATCH(
     // Verify task access
     const existing = await prisma.task.findUnique({
         where: { id: Number(id) },
-        select: { sprint: { select: { project: { select: { organizationId: true } } } } },
+        select: { project: { select: { organizationId: true } } },
     });
-    if (!existing || !orgIds.includes(existing.sprint.project.organizationId)) {
+    if (!existing || !orgIds.includes(existing.project.organizationId)) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
@@ -42,9 +42,9 @@ export async function DELETE(
 
     const existing = await prisma.task.findUnique({
         where: { id: Number(id) },
-        select: { sprint: { select: { project: { select: { organizationId: true } } } } },
+        select: { project: { select: { organizationId: true } } },
     });
-    if (!existing || !orgIds.includes(existing.sprint.project.organizationId)) {
+    if (!existing || !orgIds.includes(existing.project.organizationId)) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
